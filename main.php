@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) exit;
 
 // === Register Widget Settings ===
 function lastfm_nowplaying_register_settings() {
+    // Register options with defaults
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username');
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', array('default' => 200));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', array('default' => 50));
@@ -17,8 +18,15 @@ function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_enabled', array('default' => 1)); // 1 = enabled
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm'));
 
-    add_settings_section('lastfm_nowplaying_section', 'Last.fm Settings', null, 'lastfm_nowplaying');
+    // Add section
+    add_settings_section(
+        'lastfm_nowplaying_section',
+        'Last.fm Settings',
+        null,
+        'lastfm_nowplaying'
+    );
 
+    // Username
     add_settings_field(
         'lastfm_nowplaying_username',
         'Last.fm Username',
@@ -30,6 +38,7 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_section'
     );
 
+    // Width
     add_settings_field(
         'lastfm_nowplaying_width',
         'Box Width (px)',
@@ -41,6 +50,7 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_section'
     );
 
+    // Height
     add_settings_field(
         'lastfm_nowplaying_height',
         'Box Height (px)',
@@ -52,6 +62,7 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_section'
     );
 
+    // Text size
     add_settings_field(
         'lastfm_nowplaying_text_size',
         'Text Size (px)',
@@ -62,8 +73,34 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying',
         'lastfm_nowplaying_section'
     );
+
+    // Second line toggle
+    add_settings_field(
+        'lastfm_nowplaying_second_line_enabled',
+        'Enable Second Line',
+        function() {
+            $value = get_option('lastfm_nowplaying_second_line_enabled', 1);
+            $checked = $value ? 'checked' : '';
+            echo '<input type="checkbox" name="lastfm_nowplaying_second_line_enabled" value="1" ' . $checked . ' /> Enable';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Second line text
+    add_settings_field(
+        'lastfm_nowplaying_second_line_text',
+        'Second Line Text',
+        function() {
+            $value = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm');
+            echo '<input type="text" style="width:400px" name="lastfm_nowplaying_second_line_text" value="' . esc_attr($value) . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
 }
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
+
 
 // === Add settings page to WP Admin ===
 function lastfm_nowplaying_settings_page() {

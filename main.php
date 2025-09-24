@@ -236,17 +236,16 @@ function lastfm_nowplaying_enqueue_scripts() {
 
     .lastfm-track-text {
         display: inline-block;
-        padding-right: 50px; /* some space at end */
+        padding-right: 5px; /* minimal gap at the end */
     }
 
     @keyframes scroll-left-right {
-        0% { transform: translateX(0); }      /* start */
-        20% { transform: translateX(0); }     /* wait 15s at left */
-        80% { transform: translateX(var(--scroll-distance)); } /* scroll rightmost */
+        0% { transform: translateX(0); }
+        20% { transform: translateX(0); } /* wait 15s at left */
+        80% { transform: translateX(var(--scroll-distance)); } /* scroll fully left */
         90% { transform: translateX(var(--scroll-distance)); } /* wait 5s */
-        100% { transform: translateX(0); }    /* return to start */
+        100% { transform: translateX(0); } /* return to start */
     }
-
 
     .lastfm-track-text.scrolling {
         animation: scroll-left-right <?php echo $animation_duration; ?>s linear infinite;
@@ -261,6 +260,9 @@ function lastfm_nowplaying_enqueue_scripts() {
         document.querySelectorAll(".lastfm-track").forEach(function(container) {
             const text = container.querySelector(".lastfm-track-text");
             if (text && text.scrollWidth > container.clientWidth) {
+                // Only scroll the overflow portion, not the full text width
+                const overflowWidth = text.scrollWidth - container.clientWidth;
+                text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
                 text.classList.add("scrolling");
             }
         });
@@ -399,7 +401,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
 
         .lastfm-track-text {
             display: inline-block;
-            padding-right: 50px; /* some space at end */
+            padding-right: 5px; /* minimal space at end */
         }
 
         @keyframes scroll-left-right {
@@ -423,9 +425,9 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             document.querySelectorAll(".lastfm-track").forEach(function(container) {
                 const text = container.querySelector(".lastfm-track-text");
                 if (text && text.scrollWidth > container.clientWidth) {
-                    // Amount to scroll = text width - container width
-                    const scrollDistance = text.scrollWidth - container.clientWidth;
-                    text.style.setProperty('--scroll-distance', `-${scrollDistance}px`);
+                    // Only scroll the overflow portion, not the full text width
+                    const overflowWidth = text.scrollWidth - container.clientWidth;
+                    text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
                     text.classList.add("scrolling");
                 }
             });

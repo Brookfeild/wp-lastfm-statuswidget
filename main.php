@@ -383,7 +383,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         ?>
         <div style="border:1px solid #000; padding:2px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-height:<?php echo $height; ?>px;">
             <strong><?php echo $title; ?></strong>
-            <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 20; ?>px; overflow:hidden; white-space:nowrap;">
+            <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 4; ?>px; overflow:hidden; white-space:nowrap;">
                 <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
             </div>
 
@@ -405,11 +405,11 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         }
 
         @keyframes scroll-left-right {
-            0% { transform: translateX(0); }      /* start */
-            20% { transform: translateX(0); }     /* wait 15s at left */
-            80% { transform: translateX(var(--scroll-distance)); } /* scroll rightmost */
-            90% { transform: translateX(var(--scroll-distance)); } /* wait 5s */
-            100% { transform: translateX(0); }    /* return to start */
+            0%   { transform: translateX(0); }      /* start at left */
+            15%  { transform: translateX(0); }      /* wait left for 15s */
+            85%  { transform: translateX(var(--scroll-distance)); } /* scroll to end */
+            95%  { transform: translateX(var(--scroll-distance)); } /* wait 5s at right */
+            100% { transform: translateX(0); }      /* return to start */
         }
 
         .lastfm-track-text.scrolling {
@@ -425,7 +425,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             document.querySelectorAll(".lastfm-track").forEach(function(container) {
                 const text = container.querySelector(".lastfm-track-text");
                 if (text && text.scrollWidth > container.clientWidth) {
-                    // Only scroll the overflow portion, not the full text width
+                    // Only scroll the overflow portion
                     const overflowWidth = text.scrollWidth - container.clientWidth;
                     text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
                     text.classList.add("scrolling");

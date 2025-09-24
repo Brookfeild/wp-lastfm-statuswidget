@@ -498,7 +498,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                 <?php if ($show_playcount && $user_playcount > 0) : ?>
                     <div class="playcount-line">
                         <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank" class="lastfm-username"><?php echo esc_html($username); ?></a>
-                        has streamed this <?php echo intval($user_playcount); ?> times
+                        <span> has streamed this <?php echo intval($user_playcount); ?> times</span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -516,7 +516,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         }
         .playcount-line {
             font-size: 0.9em;
-            color: #fff;
+            color: #000;
             margin-top: 4px;
         }
         .playcount-line .lastfm-username {

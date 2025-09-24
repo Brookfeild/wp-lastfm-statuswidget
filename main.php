@@ -81,6 +81,40 @@ function lastfm_nowplaying_settings_page() {
                     submit_button();
                     ?>
                 </form>
+
+                <h2>Widget Preview</h2>
+                <?php
+                // Fetch saved or default settings
+                $username  = get_option('lastfm_nowplaying_username', '');
+                $width     = get_option('lastfm_nowplaying_width', 200);
+                $height    = get_option('lastfm_nowplaying_height', 50);
+                $text_size = get_option('lastfm_nowplaying_text_size', 14);
+
+                if ($username) {
+                    $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // replace with your key
+                    $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
+                    $response = wp_remote_get($url);
+
+                    $track_name = $artist_name = 'No track found';
+                    $title = 'Last Played:';
+
+                    if (!is_wp_error($response)) {
+                        $data = json_decode(wp_remote_retrieve_body($response), true);
+                        if (!empty($data['recenttracks']['track'][0])) {
+                            $track = $data['recenttracks']['track'][0];
+                            $track_name = esc_html($track['name']);
+                            $artist_name = esc_html($track['artist']['#text']);
+                            $title = isset($track['@attr']['nowplaying']) ? 'Now Playing:' : 'Last Played:';
+                        }
+                    }
+
+                    echo "<div style='border:1px solid #000; padding:5px; width:{$width}px; height:{$height}px; font-size:{$text_size}px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>";
+                    echo "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+                    echo "</div>";
+                } else {
+                    echo '<em>Enter a Last.fm username above to see a preview.</em>';
+                }
+                ?>
             </div>
             <?php
         }

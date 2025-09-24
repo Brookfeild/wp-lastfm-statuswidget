@@ -20,6 +20,19 @@ function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm!'));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_enabled', array('default' => 1));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_speed', array('default' => 5));
+        // Album art toggle
+        register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_album_art', [
+            'type' => 'boolean',
+            'default' => 1,
+            'sanitize_callback' => 'absint',
+        ]);
+
+        // Playcount toggle
+        register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_playcount', [
+            'type' => 'boolean',
+            'default' => 1,
+            'sanitize_callback' => 'absint',
+        ]);
 
     // Add section
     add_settings_section(
@@ -125,6 +138,35 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying',
         'lastfm_nowplaying_section'
     );
+        // Album Art Toggle
+        add_settings_field(
+            'lastfm_nowplaying_album_art',
+            'Show Album Art',
+            function () {
+                $value = get_option('lastfm_nowplaying_album_art', 1);
+                ?>
+                <input type="checkbox" name="lastfm_nowplaying_album_art" value="1" <?php checked(1, $value); ?> />
+                <label for="lastfm_nowplaying_album_art">Enable album art in widget</label>
+                <?php
+            },
+            'lastfm_nowplaying',
+            'lastfm_nowplaying_section'
+        );
+
+        // Playcount Toggle
+        add_settings_field(
+            'lastfm_nowplaying_playcount',
+            'Show Playcount Line',
+            function () {
+                $value = get_option('lastfm_nowplaying_playcount', 1);
+                ?>
+                <input type="checkbox" name="lastfm_nowplaying_playcount" value="1" <?php checked(1, $value); ?> />
+                <label for="lastfm_nowplaying_playcount">Show "USERNAME has streamed this PLAYCOUNT times"</label>
+                <?php
+            },
+            'lastfm_nowplaying',
+            'lastfm_nowplaying_section'
+        );
 }
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
 

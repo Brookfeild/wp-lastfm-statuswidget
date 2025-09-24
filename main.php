@@ -417,60 +417,89 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
 
         // Fetch recent track from Last.fm API
         $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
-        $url     = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
-
-        $response = wp_remote_get($url);
-        if (is_wp_error($response)) {
+        $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
+        $recent_response = wp_remote_get($recent_url);
+        if (is_wp_error($recent_response)) {
             echo $args['before_widget'] . 'Error fetching track.' . $args['after_widget'];
             return;
         }
-
-        $data = json_decode(wp_remote_retrieve_body($response), true);
-        if (empty($data['recenttracks']['track'][0])) {
+        $recent_data = json_decode(wp_remote_retrieve_body($recent_response), true);
+        if (empty($recent_data['recenttracks']['track'][0])) {
             echo $args['before_widget'] . 'No tracks found.' . $args['after_widget'];
             return;
         }
-
-        $track       = $data['recenttracks']['track'][0];
-        $track_name  = esc_html($track['name']);
-        $artist_name = esc_html($track['artist']['#text']);
+        $track = $recent_data['recenttracks']['track'][0];
+        $track_name  = $track['name'];
+        $artist_name = $track['artist']['#text'];
         $now_playing = isset($track['@attr']['nowplaying']);
         $title       = $now_playing ? 'Now Playing:' : 'Last Played:';
-            // Fetch track.getInfo for album art + playcount
-            $info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist=" . urlencode($artist_name) . "&track=" . urlencode($track_name) . "&username=" . urlencode($username) . "&format=json";
-            $info_res = wp_remote_get($info_url);
-            $album_art = '';
-            $playcount_line = '';
-            if (!is_wp_error($info_res)) {
-                $info_data = json_decode(wp_remote_retrieve_body($info_res), true);
-                if (!empty($info_data['track'])) {
-                    if ($show_album_art && !empty($info_data['track']['album']['image'][2]['#text'])) {
-                        $album_art = esc_url($info_data['track']['album']['image'][2]['#text']); // large image
-                    }
-                    if ($show_playcount && !empty($info_data['track']['userplaycount'])) {
-                        $playcount = intval($info_data['track']['userplaycount']);
-                        $playcount_line = "{$username} has streamed this {$playcount} times";
-                    }
+        // Fetch track.getInfo for full details (userplaycount, album art, links)
+        $info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist=" . urlencode($artist_name) . "&track=" . urlencode($track_name) . "&username=" . urlencode($username) . "&format=json";
+        $info_res = wp_remote_get($info_url);
+        $track_info = $track;
+        if (!is_wp_error($info_res)) {
+            $info_data = json_decode(wp_remote_retrieve_body($info_res), true);
+            if (!empty($info_data['track'])) {
+                $track_info = array_merge($track, $info_data['track']);
+            }
+        }
+        // Prepare URLs and album art
+        $track_url   = esc_url($track_info['url'] ?? '');
+        $artist_url  = esc_url($track_info['artist']['url'] ?? '');
+        $album_url   = esc_url($track_info['album']['url'] ?? '');
+        $album_title = esc_html($track_info['album']['title'] ?? ($track_info['album']['#text'] ?? 'Unknown Album'));
+        // Fallback: if album image array exists, grab large/medium/small
+        $album_img = '';
+        if (!empty($track_info['album']['image'])) {
+            foreach ($track_info['album']['image'] as $img) {
+                if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
+                    $album_img = esc_url($img['#text']);
+                    break;
                 }
             }
+        } elseif (!empty($track_info['image'])) {
+            foreach ($track_info['image'] as $img) {
+                if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
+                    $album_img = esc_url($img['#text']);
+                    break;
+                }
+            }
+        }
+        $user_playcount = !empty($track_info['userplaycount']) ? intval($track_info['userplaycount']) : 0;
 
         // Output widget HTML
         echo $args['before_widget'];
         ?>
-        <div style="border:1px solid #000; padding:2px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:row; align-items:center; min-height:<?php echo $height; ?>px;">
-            <?php if ($album_art): ?>
-                <img src="<?php echo $album_art; ?>" alt="Album Art" style="width:50px; height:50px; object-fit:cover; margin-right:8px;">
+        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:row; align-items:center; min-height:<?php echo $height; ?>px;">
+            <!-- Album art (or placeholder) -->
+            <?php if ($show_album_art): ?>
+                <div style="margin-right:8px; flex-shrink:0;">
+                    <?php if (!empty($album_img)): ?>
+                        <a href="<?php echo $album_url; ?>" target="_blank">
+                            <img src="<?php echo $album_img; ?>" alt="<?php echo $album_title; ?>" style="width:48px; height:48px; object-fit:cover; border:1px solid #ccc;" />
+                        </a>
+                    <?php else: ?>
+                        <a href="<?php echo $album_url; ?>" target="_blank" style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:1px solid #ccc; font-size:10px; text-align:center; background:#f9f9f9; color:#333; text-decoration:none;">
+                            <?php echo $album_title; ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
-            <div style="flex:1; display:flex; flex-direction:column;">
-                <strong><?php echo $title; ?></strong>
-                <div class="lastfm-track" style="display:inline-block; width:100%; overflow:hidden; white-space:nowrap;">
-                    <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
+            <!-- Track info -->
+            <div style="flex-grow:1; overflow:hidden;">
+                <div class="lastfm-track" style="overflow:hidden; white-space:nowrap; width:100%;">
+                    <span class="lastfm-track-text">
+                        <strong><?php echo $title; ?></strong>
+                        <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
+                        by
+                        <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+                    </span>
                 </div>
                 <?php if ($second_line_enabled && !empty($second_line_text)) : ?>
-                    <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
+                    <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a><br/>
                 <?php endif; ?>
-                <?php if ($playcount_line): ?>
-                    <div class="lastfm-playcount"><?php echo esc_html($playcount_line); ?></div>
+                <?php if ($show_playcount && $user_playcount > 0) : ?>
+                    <span><?php echo esc_html($username); ?> has streamed this <?php echo intval($user_playcount); ?> times</span>
                 <?php endif; ?>
             </div>
         </div>

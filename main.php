@@ -104,16 +104,17 @@ add_action('admin_init', 'lastfm_nowplaying_register_settings');
 
 
 // === Add settings page to WP Admin ===
+// === Admin Settings Page ===
 function lastfm_nowplaying_settings_page() {
     add_options_page(
-        'Last.fm Now Playing',
-        'Last.fm Now Playing',
+        'Last.fm Widget',
+        'Last.fm Widget',
         'manage_options',
         'lastfm_nowplaying',
         function() {
             ?>
             <div class="wrap">
-                <h1>Last.fm Now Playing Settings</h1>
+                <h1>Last.fm Widget Settings</h1>
                 <form method="post" action="options.php">
                     <?php
                     settings_fields('lastfm_nowplaying_options');
@@ -130,7 +131,10 @@ function lastfm_nowplaying_settings_page() {
                 $height    = get_option('lastfm_nowplaying_height', 50);
                 $text_size = get_option('lastfm_nowplaying_text_size', 14);
                 $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
-                $second_line_text = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
+                $second_line_text = get_option(
+                    'lastfm_nowplaying_second_line_text',
+                    'Check out everything I listen to on last.fm!'
+                );
 
                 if ($username) {
                     $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // replace with your key
@@ -151,7 +155,12 @@ function lastfm_nowplaying_settings_page() {
                     }
 
                     echo "<div style='border:1px solid #000; padding:5px; width:{$width}px; font-size:{$text_size}px; overflow:hidden;'>";
-                    echo "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+
+                    echo "<strong>{$title}</strong> ";
+                    echo "<div class='lastfm-track' style='display:inline-block; width:" . ($width - 20) . "px; overflow:hidden; vertical-align:middle; white-space:nowrap;'>";
+                    echo "<span class='lastfm-track-text'>{$track_name} by {$artist_name}</span>";
+                    echo "</div>";
+
                     if ($second_line_enabled) {
                         $link = esc_url("https://www.last.fm/user/" . urlencode($username));
                         echo "<br/><a href='{$link}' target='_blank'>" . esc_html($second_line_text) . "</a>";
@@ -168,8 +177,41 @@ function lastfm_nowplaying_settings_page() {
 }
 add_action('admin_menu', 'lastfm_nowplaying_settings_page');
 
-// === Register widget ===
+
+// === Shared CSS + JS for scrolling text ===
+function lastfm_nowplaying_enqueue_scripts() {
+    ?>
+    <style>
+    @keyframes scroll-left-right {
+      0%   { transform: translateX(0); }
+      40%  { transform: translateX(-100%); }
+      60%  { transform: translateX(-100%); }
+      100% { transform: translateX(0); }
+    }
+    .lastfm-track-text.scrolling {
+      display: inline-block;
+      padding-right: 50px;
+      animation: scroll-left-right 10s linear infinite;
+    }
+    </style>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      document.querySelectorAll(".lastfm-track").forEach(function(container) {
+        const text = container.querySelector(".lastfm-track-text");
+        if (text && text.scrollWidth > container.clientWidth) {
+          text.classList.add("scrolling");
+        }
+      });
+    });
+    </script>
+    <?php
+}
+// Load on frontend and admin preview
+add_action('wp_footer', 'lastfm_nowplaying_enqueue_scripts');
+add_action('admin_footer', 'lastfm_nowplaying_enqueue_scripts');
+
 class LastFM_NowPlaying_Widget extends WP_Widget {
+
     public function __construct() {
         parent::__construct(
             'lastfm_nowplaying_widget',
@@ -178,18 +220,30 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         );
     }
 
+    // Widget settings form in admin
     public function form($instance) {
-        $width = isset($instance['width']) ? $instance['width'] : 200;
+        $width  = isset($instance['width']) ? $instance['width'] : 200;
         $height = isset($instance['height']) ? $instance['height'] : 50;
+        $text_size = isset($instance['text_size']) ? $instance['text_size'] : 14;
 
         ?>
         <p>
             <label for="<?php echo $this->get_field_id('width'); ?>">Box Width (px):</label>
-            <input class="widefat" id="<?php echo $this->get_field_id('width'); ?>" name="<?php echo $this->get_field_name('width'); ?>" type="number" value="<?php echo esc_attr($width); ?>" />
+            <input class="widefat" id="<?php echo $this->get_field_id('width'); ?>" 
+                   name="<?php echo $this->get_field_name('width'); ?>" type="number" 
+                   value="<?php echo esc_attr($width); ?>" />
         </p>
         <p>
             <label for="<?php echo $this->get_field_id('height'); ?>">Box Height (px):</label>
-            <input class="widefat" id="<?php echo $this->get_field_id('height'); ?>" name="<?php echo $this->get_field_name('height'); ?>" type="number" value="<?php echo esc_attr($height); ?>" />
+            <input class="widefat" id="<?php echo $this->get_field_id('height'); ?>" 
+                   name="<?php echo $this->get_field_name('height'); ?>" type="number" 
+                   value="<?php echo esc_attr($height); ?>" />
+        </p>
+        <p>
+            <label for="<?php echo $this->get_field_id('text_size'); ?>">Text Size (px):</label>
+            <input class="widefat" id="<?php echo $this->get_field_id('text_size'); ?>" 
+                   name="<?php echo $this->get_field_name('text_size'); ?>" type="number" 
+                   value="<?php echo esc_attr($text_size); ?>" />
         </p>
         <?php
     }
@@ -197,8 +251,9 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
     // Update widget options
     public function update($new_instance, $old_instance) {
         $instance = $old_instance;
-        $instance['width'] = intval($new_instance['width']);
-        $instance['height'] = intval($new_instance['height']);
+        $instance['width']     = intval($new_instance['width']);
+        $instance['height']    = intval($new_instance['height']);
+        $instance['text_size'] = intval($new_instance['text_size']);
         return $instance;
     }
 
@@ -210,16 +265,15 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
-        // Settings
         $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
-        $second_line_text    = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm');
-        $width               = get_option('lastfm_nowplaying_width', 200);
-        $height              = get_option('lastfm_nowplaying_height', 50);
-        $text_size           = get_option('lastfm_nowplaying_text_size', 14);
+        $second_line_text    = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
+        $width               = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
+        $height              = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
+        $text_size           = isset($instance['text_size']) ? $instance['text_size'] : get_option('lastfm_nowplaying_text_size', 14);
 
-        // API call
-        $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // Replace with your key
-        $url     = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
+        // Fetch recent track from Last.fm API
+        $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
+        $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
 
         $response = wp_remote_get($url);
         if (is_wp_error($response)) {
@@ -233,26 +287,50 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
-        // Track details
         $track       = $data['recenttracks']['track'][0];
         $track_name  = esc_html($track['name']);
         $artist_name = esc_html($track['artist']['#text']);
         $now_playing = isset($track['@attr']['nowplaying']) ? true : false;
+        $title       = $now_playing ? 'Now Playing:' : 'Last Played:';
 
-        // Output
-        $title  = $now_playing ? 'Now Playing:' : 'Last Played:';
-        $output = "<div style='border:1px solid #000; padding:5px; width:{$width}px; font-size:{$text_size}px; line-height:1.4;'>";
-        $output .= "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+        // Output widget HTML
+        echo $args['before_widget'];
+        ?>
+        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; height:<?php echo $height; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden;">
+            <strong><?php echo $title; ?></strong>
+            <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 20; ?>px; overflow:hidden; vertical-align:middle; white-space:nowrap;">
+                <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
+            </div>
+            <?php if ($second_line_enabled && !empty($second_line_text)): ?>
+                <br><a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
+            <?php endif; ?>
+        </div>
 
-        // Add second line if enabled
-        if ($second_line_enabled && !empty($second_line_text)) {
-            $second_line_text_escaped = esc_html($second_line_text);
-            $output .= "<br><a href='https://www.last.fm/user/{$username}' target='_blank'>{$second_line_text_escaped}</a>";
+        <style>
+        @keyframes scroll-left-right {
+            0%   { transform: translateX(0); }
+            40%  { transform: translateX(-100%); }
+            60%  { transform: translateX(-100%); }
+            100% { transform: translateX(0); }
         }
-
-        $output .= "</div>";
-
-        echo $args['before_widget'] . $output . $args['after_widget'];
+        .lastfm-track-text.scrolling {
+            display: inline-block;
+            padding-right: 50px;
+            animation: scroll-left-right 10s linear infinite;
+        }
+        </style>
+        <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.querySelectorAll(".lastfm-track").forEach(function(container) {
+                const text = container.querySelector(".lastfm-track-text");
+                if (text && text.scrollWidth > container.clientWidth) {
+                    text.classList.add("scrolling");
+                }
+            });
+        });
+        </script>
+        <?php
+        echo $args['after_widget'];
     }
 }
 

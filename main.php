@@ -350,6 +350,8 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $second_line_text    = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
         $scroll_enabled      = get_option('lastfm_nowplaying_scroll_enabled', 1);
         $scroll_speed        = get_option('lastfm_nowplaying_scroll_speed', 5); // 1-10
+        $show_album_art      = get_option('lastfm_nowplaying_album_art', 1);
+        $show_playcount      = get_option('lastfm_nowplaying_playcount', 1);
         $width               = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
         $height              = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
         $text_size           = isset($instance['text_size']) ? $instance['text_size'] : get_option('lastfm_nowplaying_text_size', 14);
@@ -392,19 +394,43 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $artist_name = esc_html($track['artist']['#text']);
         $now_playing = isset($track['@attr']['nowplaying']);
         $title       = $now_playing ? 'Now Playing:' : 'Last Played:';
+            // Fetch track.getInfo for album art + playcount
+            $info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist=" . urlencode($artist_name) . "&track=" . urlencode($track_name) . "&username=" . urlencode($username) . "&format=json";
+            $info_res = wp_remote_get($info_url);
+            $album_art = '';
+            $playcount_line = '';
+            if (!is_wp_error($info_res)) {
+                $info_data = json_decode(wp_remote_retrieve_body($info_res), true);
+                if (!empty($info_data['track'])) {
+                    if ($show_album_art && !empty($info_data['track']['album']['image'][2]['#text'])) {
+                        $album_art = esc_url($info_data['track']['album']['image'][2]['#text']); // large image
+                    }
+                    if ($show_playcount && !empty($info_data['track']['userplaycount'])) {
+                        $playcount = intval($info_data['track']['userplaycount']);
+                        $playcount_line = "{$username} has streamed this {$playcount} times";
+                    }
+                }
+            }
 
         // Output widget HTML
         echo $args['before_widget'];
         ?>
-        <div style="border:1px solid #000; padding:0; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-height:<?php echo $height; ?>px;">
-            <strong><?php echo $title; ?></strong>
-            <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 4; ?>px; overflow:hidden; white-space:nowrap;">
-                <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
-            </div>
-
-            <?php if ($second_line_enabled && !empty($second_line_text)) : ?>
-                <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
+        <div style="border:1px solid #000; padding:2px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:row; align-items:center; min-height:<?php echo $height; ?>px;">
+            <?php if ($album_art): ?>
+                <img src="<?php echo $album_art; ?>" alt="Album Art" style="width:50px; height:50px; object-fit:cover; margin-right:8px;">
             <?php endif; ?>
+            <div style="flex:1; display:flex; flex-direction:column;">
+                <strong><?php echo $title; ?></strong>
+                <div class="lastfm-track" style="display:inline-block; width:100%; overflow:hidden; white-space:nowrap;">
+                    <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
+                </div>
+                <?php if ($second_line_enabled && !empty($second_line_text)) : ?>
+                    <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
+                <?php endif; ?>
+                <?php if ($playcount_line): ?>
+                    <div class="lastfm-playcount"><?php echo esc_html($playcount_line); ?></div>
+                <?php endif; ?>
+            </div>
         </div>
 
         <style>

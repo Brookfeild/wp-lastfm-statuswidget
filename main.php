@@ -9,14 +9,15 @@ Author: Tyler
 if (!defined('ABSPATH')) exit;
 
 // === Register Widget Settings ===
+// === Register settings and fields ===
 function lastfm_nowplaying_register_settings() {
     // Register options with defaults
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username');
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', array('default' => 200));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', array('default' => 50));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_enabled', array('default' => 1)); // 1 = enabled
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm'));
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_enabled', array('default' => 1)); // default = TRUE
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm!'));
 
     // Add section
     add_settings_section(
@@ -92,7 +93,7 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_second_line_text',
         'Second Line Text',
         function() {
-            $value = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm');
+            $value = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
             echo '<input type="text" style="width:400px" name="lastfm_nowplaying_second_line_text" value="' . esc_attr($value) . '" />';
         },
         'lastfm_nowplaying',
@@ -128,6 +129,8 @@ function lastfm_nowplaying_settings_page() {
                 $width     = get_option('lastfm_nowplaying_width', 200);
                 $height    = get_option('lastfm_nowplaying_height', 50);
                 $text_size = get_option('lastfm_nowplaying_text_size', 14);
+                $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
+                $second_line_text = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
 
                 if ($username) {
                     $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // replace with your key
@@ -147,8 +150,12 @@ function lastfm_nowplaying_settings_page() {
                         }
                     }
 
-                    echo "<div style='border:1px solid #000; padding:5px; width:{$width}px; height:{$height}px; font-size:{$text_size}px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>";
+                    echo "<div style='border:1px solid #000; padding:5px; width:{$width}px; font-size:{$text_size}px; overflow:hidden;'>";
                     echo "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+                    if ($second_line_enabled) {
+                        $link = esc_url("https://www.last.fm/user/" . urlencode($username));
+                        echo "<br/><a href='{$link}' target='_blank'>" . esc_html($second_line_text) . "</a>";
+                    }
                     echo "</div>";
                 } else {
                     echo '<em>Enter a Last.fm username above to see a preview.</em>';

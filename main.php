@@ -14,6 +14,8 @@ function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', array('default' => 200));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', array('default' => 50));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_enabled', array('default' => 1)); // 1 = enabled
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm'));
 
     add_settings_section('lastfm_nowplaying_section', 'Last.fm Settings', null, 'lastfm_nowplaying');
 
@@ -164,12 +166,16 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
-        $width = get_option('lastfm_nowplaying_width', 200);
-        $height = get_option('lastfm_nowplaying_height', 50);
-        $text_size = get_option('lastfm_nowplaying_text_size', 14);
+        // Settings
+        $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
+        $second_line_text    = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm');
+        $width               = get_option('lastfm_nowplaying_width', 200);
+        $height              = get_option('lastfm_nowplaying_height', 50);
+        $text_size           = get_option('lastfm_nowplaying_text_size', 14);
 
+        // API call
         $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // Replace with your key
-        $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
+        $url     = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
 
         $response = wp_remote_get($url);
         if (is_wp_error($response)) {
@@ -183,14 +189,23 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
-        $track = $data['recenttracks']['track'][0];
-        $track_name = esc_html($track['name']);
+        // Track details
+        $track       = $data['recenttracks']['track'][0];
+        $track_name  = esc_html($track['name']);
         $artist_name = esc_html($track['artist']['#text']);
         $now_playing = isset($track['@attr']['nowplaying']) ? true : false;
 
-        $title = $now_playing ? 'Now Playing:' : 'Last Played:';
-        $output = "<div style='border:1px solid #000; padding:5px; width:{$width}px; height:{$height}px; font-size:{$text_size}px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>";
+        // Output
+        $title  = $now_playing ? 'Now Playing:' : 'Last Played:';
+        $output = "<div style='border:1px solid #000; padding:5px; width:{$width}px; font-size:{$text_size}px; line-height:1.4;'>";
         $output .= "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+
+        // Add second line if enabled
+        if ($second_line_enabled && !empty($second_line_text)) {
+            $second_line_text_escaped = esc_html($second_line_text);
+            $output .= "<br><a href='https://www.last.fm/user/{$username}' target='_blank'>{$second_line_text_escaped}</a>";
+        }
+
         $output .= "</div>";
 
         echo $args['before_widget'] . $output . $args['after_widget'];

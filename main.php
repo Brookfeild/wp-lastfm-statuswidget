@@ -180,7 +180,7 @@ function lastfm_nowplaying_settings_page() {
                         }
                     }
 
-                    echo "<div style='border:1px solid #000; padding:5px; width:{$width}px; font-size:{$text_size}px; overflow:hidden;'>";
+                    echo "<div style='border:1px solid #000; padding:0; width:{$width}px; font-size:{$text_size}px; overflow:hidden;'>";
 
                     echo "<strong>{$title}</strong> ";
                     echo "<div class='lastfm-track' style='display:inline-block; width:" . ($width - 20) . "px; overflow:hidden; vertical-align:middle; white-space:nowrap;'>";
@@ -381,7 +381,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         // Output widget HTML
         echo $args['before_widget'];
         ?>
-        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-height:<?php echo $height; ?>px;">
+        <div style="border:1px solid #000; padding:0; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-height:<?php echo $height; ?>px;">
             <strong><?php echo $title; ?></strong>
             <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 4; ?>px; overflow:hidden; white-space:nowrap;">
                 <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>

@@ -259,15 +259,30 @@ function lastfm_nowplaying_enqueue_scripts() {
 
         document.querySelectorAll(".lastfm-track").forEach(function(container) {
             const text = container.querySelector(".lastfm-track-text");
-            if (text && text.scrollWidth > container.clientWidth) {
-                // Only scroll the overflow portion, not the full text width
-                const overflowWidth = text.scrollWidth - container.clientWidth;
+            if (!text) return;
+
+            const containerStyles = window.getComputedStyle(container);
+            const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+
+            // Calculate visible width minus padding
+            const visibleWidth = container.clientWidth - containerPadding;
+
+            // Calculate overflow width
+            const overflowWidth = text.scrollWidth - visibleWidth;
+
+            // Only scroll if there is actual overflow
+            if (overflowWidth > 0) {
                 text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
                 text.classList.add("scrolling");
+            } else {
+                // Ensure no scrolling if text fits
+                text.classList.remove("scrolling");
+                text.style.removeProperty('--scroll-distance');
             }
         });
     });
     </script>
+
     <?php
 }
 
@@ -424,15 +439,30 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
 
             document.querySelectorAll(".lastfm-track").forEach(function(container) {
                 const text = container.querySelector(".lastfm-track-text");
-                if (text && text.scrollWidth > container.clientWidth) {
-                    // Only scroll the overflow portion
-                    const overflowWidth = text.scrollWidth - container.clientWidth;
+                if (!text) return;
+
+                const containerStyles = window.getComputedStyle(container);
+                const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+
+                // Calculate visible width minus padding
+                const visibleWidth = container.clientWidth - containerPadding;
+
+                // Calculate overflow width
+                const overflowWidth = text.scrollWidth - visibleWidth;
+
+                // Only scroll if there is actual overflow
+                if (overflowWidth > 0) {
                     text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
                     text.classList.add("scrolling");
+                } else {
+                    // Ensure no scrolling if text fits
+                    text.classList.remove("scrolling");
+                    text.style.removeProperty('--scroll-distance');
                 }
             });
         });
         </script>
+
         <?php
         echo $args['after_widget'];
     }

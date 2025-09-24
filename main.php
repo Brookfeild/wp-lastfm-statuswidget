@@ -99,3 +99,10 @@ function lastfm_nowplaying_register_widget() {
     register_widget('LastFM_NowPlaying_Widget');
 }
 add_action('widgets_init', 'lastfm_nowplaying_register_widget');
+
+function lastfm_nowplaying_shortcode() {
+    ob_start();
+    the_widget('LastFM_NowPlaying_Widget');
+    return ob_get_clean();
+}
+add_shortcode('lastfm_nowplaying', 'lastfm_nowplaying_shortcode');

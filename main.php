@@ -207,22 +207,49 @@ add_action('admin_menu', 'lastfm_nowplaying_settings_page');
 // === Shared CSS + JS for scrolling text ===
 function lastfm_nowplaying_enqueue_scripts() {
     $scroll_enabled = get_option('lastfm_nowplaying_scroll_enabled', 1);
-    $scroll_speed   = get_option('lastfm_nowplaying_scroll_speed', 5);
+    $scroll_speed = get_option('lastfm_nowplaying_scroll_speed', 5); // 1-10
 
-    // Map scroll speed (1-10) to animation duration (slow = long duration)
-    $animation_duration = 11 - intval($scroll_speed); // 1 = slow (10s), 10 = fast (1s)
+    // New mapping: speed 1 = slowest (15s wait at left), speed 10 = fastest
+    // Base duration for movement: slower speed → longer duration
+    $speed_map = [
+        1 => 20,  // extra slow
+        2 => 18,
+        3 => 16,
+        4 => 14,
+        5 => 12,
+        6 => 10,
+        7 => 8,
+        8 => 6,
+        9 => 4,
+        10 => 2  // fastest
+    ];
+
+    $animation_duration = isset($speed_map[$scroll_speed]) ? $speed_map[$scroll_speed] : 12;
+
     ?>
     <style>
-    @keyframes scroll-left-right {
-        0%   { transform: translateX(0); }
-        40%  { transform: translateX(-100%); }
-        60%  { transform: translateX(-100%); }
-        100% { transform: translateX(0); }
-    }
-    .lastfm-track-text.scrolling {
+    .lastfm-track {
+        overflow: hidden;
+        white-space: nowrap;
         display: inline-block;
-        padding-right: 50px;
-        animation: scroll-left-right <?php echo esc_attr($animation_duration); ?>s linear infinite;
+    }
+
+    .lastfm-track-text {
+        display: inline-block;
+        padding-right: 50px; /* some space at end */
+    }
+
+    @keyframes scroll-left-right {
+        0% { transform: translateX(0); }      /* start */
+        20% { transform: translateX(0); }     /* wait 15s at left */
+        80% { transform: translateX(var(--scroll-distance)); } /* scroll rightmost */
+        90% { transform: translateX(var(--scroll-distance)); } /* wait 5s */
+        100% { transform: translateX(0); }    /* return to start */
+    }
+
+
+    .lastfm-track-text.scrolling {
+        animation: scroll-left-right <?php echo $animation_duration; ?>s linear infinite;
     }
     </style>
 
@@ -311,7 +338,21 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $text_size           = isset($instance['text_size']) ? $instance['text_size'] : get_option('lastfm_nowplaying_text_size', 14);
 
         // Map scroll speed (1=slow, 10=fast) to animation duration (s)
-        $animation_duration = 11 - intval($scroll_speed);
+        $speed_map = [
+            1 => 20,  // extra slow
+            2 => 18,
+            3 => 16,
+            4 => 14,
+            5 => 12,
+            6 => 10,
+            7 => 8,
+            8 => 6,
+            9 => 4,
+            10 => 2  // fastest
+        ];
+
+        $animation_duration = isset($speed_map[$scroll_speed]) ? $speed_map[$scroll_speed] : 12;
+
 
         // Fetch recent track from Last.fm API
         $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
@@ -350,16 +391,27 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         </div>
 
         <style>
-        @keyframes scroll-left-right {
-            0%   { transform: translateX(0); }
-            40%  { transform: translateX(-100%); }
-            60%  { transform: translateX(-100%); }
-            100% { transform: translateX(0); }
-        }
-        .lastfm-track-text.scrolling {
+        .lastfm-track {
+            overflow: hidden;
+            white-space: nowrap;
             display: inline-block;
-            padding-right: 50px;
-            animation: scroll-left-right <?php echo esc_attr($animation_duration); ?>s linear infinite;
+        }
+
+        .lastfm-track-text {
+            display: inline-block;
+            padding-right: 50px; /* some space at end */
+        }
+
+        @keyframes scroll-left-right {
+            0% { transform: translateX(0); }      /* start */
+            20% { transform: translateX(0); }     /* wait 15s at left */
+            80% { transform: translateX(var(--scroll-distance)); } /* scroll rightmost */
+            90% { transform: translateX(var(--scroll-distance)); } /* wait 5s */
+            100% { transform: translateX(0); }    /* return to start */
+        }
+
+        .lastfm-track-text.scrolling {
+            animation: scroll-left-right <?php echo $animation_duration; ?>s linear infinite;
         }
         </style>
 
@@ -371,6 +423,9 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             document.querySelectorAll(".lastfm-track").forEach(function(container) {
                 const text = container.querySelector(".lastfm-track-text");
                 if (text && text.scrollWidth > container.clientWidth) {
+                    // Amount to scroll = text width - container width
+                    const scrollDistance = text.scrollWidth - container.clientWidth;
+                    text.style.setProperty('--scroll-distance', `-${scrollDistance}px`);
                     text.classList.add("scrolling");
                 }
             });

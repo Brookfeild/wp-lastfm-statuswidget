@@ -18,6 +18,8 @@ function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_enabled', array('default' => 1)); // default = TRUE
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm!'));
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_enabled', array('default' => 1));
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_speed', array('default' => 5));
 
     // Add section
     add_settings_section(
@@ -95,6 +97,30 @@ function lastfm_nowplaying_register_settings() {
         function() {
             $value = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
             echo '<input type="text" style="width:400px" name="lastfm_nowplaying_second_line_text" value="' . esc_attr($value) . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    add_settings_field(
+        'lastfm_nowplaying_scroll_enabled',
+        'Enable Scrolling',
+        function() {
+            $value = get_option('lastfm_nowplaying_scroll_enabled', 1); // default TRUE
+            $checked = $value ? 'checked' : '';
+            echo '<input type="checkbox" name="lastfm_nowplaying_scroll_enabled" value="1" ' . $checked . ' /> Enable scrolling for long song titles';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    add_settings_field(
+        'lastfm_nowplaying_scroll_speed',
+        'Scroll Speed (1-10)',
+        function() {
+            $value = get_option('lastfm_nowplaying_scroll_speed', 5);
+            echo '<input type="number" name="lastfm_nowplaying_scroll_speed" min="1" max="10" value="' . esc_attr($value) . '" />';
+            echo ' (1 = slowest, 10 = fastest)';
         },
         'lastfm_nowplaying',
         'lastfm_nowplaying_section'
@@ -180,32 +206,42 @@ add_action('admin_menu', 'lastfm_nowplaying_settings_page');
 
 // === Shared CSS + JS for scrolling text ===
 function lastfm_nowplaying_enqueue_scripts() {
+    $scroll_enabled = get_option('lastfm_nowplaying_scroll_enabled', 1);
+    $scroll_speed   = get_option('lastfm_nowplaying_scroll_speed', 5);
+
+    // Map scroll speed (1-10) to animation duration (slow = long duration)
+    $animation_duration = 11 - intval($scroll_speed); // 1 = slow (10s), 10 = fast (1s)
     ?>
     <style>
     @keyframes scroll-left-right {
-      0%   { transform: translateX(0); }
-      40%  { transform: translateX(-100%); }
-      60%  { transform: translateX(-100%); }
-      100% { transform: translateX(0); }
+        0%   { transform: translateX(0); }
+        40%  { transform: translateX(-100%); }
+        60%  { transform: translateX(-100%); }
+        100% { transform: translateX(0); }
     }
     .lastfm-track-text.scrolling {
-      display: inline-block;
-      padding-right: 50px;
-      animation: scroll-left-right 10s linear infinite;
+        display: inline-block;
+        padding-right: 50px;
+        animation: scroll-left-right <?php echo esc_attr($animation_duration); ?>s linear infinite;
     }
     </style>
+
     <script>
     document.addEventListener("DOMContentLoaded", function() {
-      document.querySelectorAll(".lastfm-track").forEach(function(container) {
-        const text = container.querySelector(".lastfm-track-text");
-        if (text && text.scrollWidth > container.clientWidth) {
-          text.classList.add("scrolling");
-        }
-      });
+        const scrollEnabled = <?php echo $scroll_enabled ? 'true' : 'false'; ?>;
+        if (!scrollEnabled) return;
+
+        document.querySelectorAll(".lastfm-track").forEach(function(container) {
+            const text = container.querySelector(".lastfm-track-text");
+            if (text && text.scrollWidth > container.clientWidth) {
+                text.classList.add("scrolling");
+            }
+        });
     });
     </script>
     <?php
 }
+
 // Load on frontend and admin preview
 add_action('wp_footer', 'lastfm_nowplaying_enqueue_scripts');
 add_action('admin_footer', 'lastfm_nowplaying_enqueue_scripts');
@@ -265,15 +301,21 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
+        // Settings
         $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
         $second_line_text    = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
+        $scroll_enabled      = get_option('lastfm_nowplaying_scroll_enabled', 1);
+        $scroll_speed        = get_option('lastfm_nowplaying_scroll_speed', 5); // 1-10
         $width               = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
         $height              = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
         $text_size           = isset($instance['text_size']) ? $instance['text_size'] : get_option('lastfm_nowplaying_text_size', 14);
 
+        // Map scroll speed (1=slow, 10=fast) to animation duration (s)
+        $animation_duration = 11 - intval($scroll_speed);
+
         // Fetch recent track from Last.fm API
         $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
-        $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
+        $url     = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
 
         $response = wp_remote_get($url);
         if (is_wp_error($response)) {
@@ -290,19 +332,19 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $track       = $data['recenttracks']['track'][0];
         $track_name  = esc_html($track['name']);
         $artist_name = esc_html($track['artist']['#text']);
-        $now_playing = isset($track['@attr']['nowplaying']) ? true : false;
+        $now_playing = isset($track['@attr']['nowplaying']);
         $title       = $now_playing ? 'Now Playing:' : 'Last Played:';
 
         // Output widget HTML
         echo $args['before_widget'];
         ?>
-        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center;">
+        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center; min-height:<?php echo $height; ?>px;">
             <strong><?php echo $title; ?></strong>
             <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 20; ?>px; overflow:hidden; white-space:nowrap;">
                 <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
             </div>
 
-            <?php if ($second_line_enabled && !empty($second_line_text)): ?>
+            <?php if ($second_line_enabled && !empty($second_line_text)) : ?>
                 <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
             <?php endif; ?>
         </div>
@@ -317,11 +359,15 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         .lastfm-track-text.scrolling {
             display: inline-block;
             padding-right: 50px;
-            animation: scroll-left-right 10s linear infinite;
+            animation: scroll-left-right <?php echo esc_attr($animation_duration); ?>s linear infinite;
         }
         </style>
+
         <script>
         document.addEventListener("DOMContentLoaded", function() {
+            const scrollEnabled = <?php echo $scroll_enabled ? 'true' : 'false'; ?>;
+            if (!scrollEnabled) return;
+
             document.querySelectorAll(".lastfm-track").forEach(function(container) {
                 const text = container.querySelector(".lastfm-track-text");
                 if (text && text.scrollWidth > container.clientWidth) {

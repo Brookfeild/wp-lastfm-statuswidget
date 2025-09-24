@@ -60,6 +60,31 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         );
     }
 
+    public function form($instance) {
+        $width = isset($instance['width']) ? $instance['width'] : 200;
+        $height = isset($instance['height']) ? $instance['height'] : 50;
+
+        ?>
+        <p>
+            <label for="<?php echo $this->get_field_id('width'); ?>">Box Width (px):</label>
+            <input class="widefat" id="<?php echo $this->get_field_id('width'); ?>" name="<?php echo $this->get_field_name('width'); ?>" type="number" value="<?php echo esc_attr($width); ?>" />
+        </p>
+        <p>
+            <label for="<?php echo $this->get_field_id('height'); ?>">Box Height (px):</label>
+            <input class="widefat" id="<?php echo $this->get_field_id('height'); ?>" name="<?php echo $this->get_field_name('height'); ?>" type="number" value="<?php echo esc_attr($height); ?>" />
+        </p>
+        <?php
+    }
+
+    // Update widget options
+    public function update($new_instance, $old_instance) {
+        $instance = $old_instance;
+        $instance['width'] = intval($new_instance['width']);
+        $instance['height'] = intval($new_instance['height']);
+        return $instance;
+    }
+
+    // Frontend display
     public function widget($args, $instance) {
         $username = get_option('lastfm_nowplaying_username', '');
         if (!$username) {
@@ -67,7 +92,10 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
-        $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // Replace with your API key
+        $width = isset($instance['width']) ? intval($instance['width']) : 200;
+        $height = isset($instance['height']) ? intval($instance['height']) : 50;
+
+        $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // Replace with your key
         $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
 
         $response = wp_remote_get($url);
@@ -88,7 +116,9 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $now_playing = isset($track['@attr']['nowplaying']) ? true : false;
 
         $title = $now_playing ? 'Now Playing:' : 'Last Played:';
-        $output = "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+        $output = "<div style='border:1px solid #000; padding:5px; width:{$width}px; height:{$height}px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>";
+        $output .= "<strong>{$title}</strong> {$track_name} by {$artist_name}";
+        $output .= "</div>";
 
         echo $args['before_widget'] . $output . $args['after_widget'];
     }

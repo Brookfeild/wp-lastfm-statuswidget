@@ -296,13 +296,14 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         // Output widget HTML
         echo $args['before_widget'];
         ?>
-        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; height:<?php echo $height; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden;">
+        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:column; justify-content:center;">
             <strong><?php echo $title; ?></strong>
-            <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 20; ?>px; overflow:hidden; vertical-align:middle; white-space:nowrap;">
+            <div class="lastfm-track" style="display:inline-block; width:<?php echo $width - 20; ?>px; overflow:hidden; white-space:nowrap;">
                 <span class="lastfm-track-text"><?php echo "{$track_name} by {$artist_name}"; ?></span>
             </div>
+
             <?php if ($second_line_enabled && !empty($second_line_text)): ?>
-                <br><a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
+                <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a>
             <?php endif; ?>
         </div>
 

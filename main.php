@@ -495,11 +495,11 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                         <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
                     </span>
                 </div>
-                <?php if ($second_line_enabled && !empty($second_line_text)) : ?>
-                    <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank"><?php echo esc_html($second_line_text); ?></a><br/>
-                <?php endif; ?>
                 <?php if ($show_playcount && $user_playcount > 0) : ?>
-                    <span><?php echo esc_html($username); ?> has streamed this <?php echo intval($user_playcount); ?> times</span>
+                    <div class="playcount-line">
+                        <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank" class="lastfm-username"><?php echo esc_html($username); ?></a>
+                        has streamed this <?php echo intval($user_playcount); ?> times
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -510,20 +510,30 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             white-space: nowrap;
             display: inline-block;
         }
-
         .lastfm-track-text {
             display: inline-block;
             padding-right: 0; /* minimal space at end */
         }
-
-        @keyframes scroll-left-right {
-            0%   { transform: translateX(0); }      /* start at left */
-            15%  { transform: translateX(0); }      /* wait left for 15s */
-            85%  { transform: translateX(var(--scroll-distance)); } /* scroll to end */
-            95%  { transform: translateX(var(--scroll-distance)); } /* wait 5s at right */
-            100% { transform: translateX(0); }      /* return to start */
+        .playcount-line {
+            font-size: 0.9em;
+            color: #fff;
+            margin-top: 4px;
         }
-
+        .playcount-line .lastfm-username {
+            color: #d51007;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .playcount-line .lastfm-username:hover {
+            text-decoration: underline;
+        }
+        @keyframes scroll-left-right {
+            0%   { transform: translateX(0); }
+            15%  { transform: translateX(0); }
+            85%  { transform: translateX(var(--scroll-distance)); }
+            95%  { transform: translateX(var(--scroll-distance)); }
+            100% { transform: translateX(0); }
+        }
         .lastfm-track-text.scrolling {
             animation: scroll-left-right <?php echo $animation_duration; ?>s linear infinite;
         }

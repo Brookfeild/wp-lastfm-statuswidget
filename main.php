@@ -11,13 +11,51 @@ if (!defined('ABSPATH')) exit;
 // === Register Widget Settings ===
 function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username');
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', array('default' => 200));
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', array('default' => 50));
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
+
     add_settings_section('lastfm_nowplaying_section', 'Last.fm Settings', null, 'lastfm_nowplaying');
+
     add_settings_field(
         'lastfm_nowplaying_username',
         'Last.fm Username',
         function() {
             $value = get_option('lastfm_nowplaying_username', '');
             echo '<input type="text" name="lastfm_nowplaying_username" value="' . esc_attr($value) . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    add_settings_field(
+        'lastfm_nowplaying_width',
+        'Box Width (px)',
+        function() {
+            $value = get_option('lastfm_nowplaying_width', 200);
+            echo '<input type="number" name="lastfm_nowplaying_width" value="' . esc_attr($value) . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    add_settings_field(
+        'lastfm_nowplaying_height',
+        'Box Height (px)',
+        function() {
+            $value = get_option('lastfm_nowplaying_height', 50);
+            echo '<input type="number" name="lastfm_nowplaying_height" value="' . esc_attr($value) . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    add_settings_field(
+        'lastfm_nowplaying_text_size',
+        'Text Size (px)',
+        function() {
+            $value = get_option('lastfm_nowplaying_text_size', 14);
+            echo '<input type="number" name="lastfm_nowplaying_text_size" value="' . esc_attr($value) . '" />';
         },
         'lastfm_nowplaying',
         'lastfm_nowplaying_section'
@@ -92,8 +130,9 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             return;
         }
 
-        $width = isset($instance['width']) ? intval($instance['width']) : 200;
-        $height = isset($instance['height']) ? intval($instance['height']) : 50;
+        $width = get_option('lastfm_nowplaying_width', 200);
+        $height = get_option('lastfm_nowplaying_height', 50);
+        $text_size = get_option('lastfm_nowplaying_text_size', 14);
 
         $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // Replace with your key
         $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
@@ -116,7 +155,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $now_playing = isset($track['@attr']['nowplaying']) ? true : false;
 
         $title = $now_playing ? 'Now Playing:' : 'Last Played:';
-        $output = "<div style='border:1px solid #000; padding:5px; width:{$width}px; height:{$height}px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>";
+        $output = "<div style='border:1px solid #000; padding:5px; width:{$width}px; height:{$height}px; font-size:{$text_size}px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;'>";
         $output .= "<strong>{$title}</strong> {$track_name} by {$artist_name}";
         $output .= "</div>";
 

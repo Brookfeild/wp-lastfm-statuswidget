@@ -11,39 +11,25 @@ if (!defined('ABSPATH')) exit;
 // === Register Widget Settings ===
 // === Register settings and fields ===
 function lastfm_nowplaying_register_settings() {
-    // Register options with defaults
+    // === Register options with defaults ===
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username');
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', array('default' => 200));
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', array('default' => 50));
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_enabled', array('default' => 1));
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_speed', array('default' => 5));
-
-    // Album art toggle
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', ['default' => 200]);
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', ['default' => 50]);
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', ['default' => 14]);
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_enabled', ['default' => 1]);
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_speed', ['default' => 5]);
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_album_art', [
-        'type' => 'boolean',
-        'default' => 1,
-        'sanitize_callback' => 'absint',
+        'type' => 'boolean', 'default' => 1, 'sanitize_callback' => 'absint'
     ]);
-
-    // Playcount toggle
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_playcount', [
-        'type' => 'boolean',
-        'default' => 1,
-        'sanitize_callback' => 'absint',
+        'type' => 'boolean', 'default' => 1, 'sanitize_callback' => 'absint'
     ]);
-
-    // Hyperlinked username toggle
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username_link', [
-        'type' => 'boolean',
-        'default' => 1,
-        'sanitize_callback' => 'absint',
+        'type' => 'boolean', 'default' => 1, 'sanitize_callback' => 'absint'
     ]);
-
-    // API key
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_api_key');
 
-    // Add section
+    // === Section ===
     add_settings_section(
         'lastfm_nowplaying_section',
         'Last.fm Settings',
@@ -51,25 +37,129 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying'
     );
 
-    // Add field: Hyperlink Username
+    // === Fields ===
+    // Username
+    add_settings_field(
+        'lastfm_nowplaying_username',
+        'Last.fm Username',
+        function () {
+            $value = esc_attr(get_option('lastfm_nowplaying_username', ''));
+            echo '<input type="text" name="lastfm_nowplaying_username" value="' . $value . '" class="regular-text" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Width
+    add_settings_field(
+        'lastfm_nowplaying_width',
+        'Widget Width (px)',
+        function () {
+            $value = intval(get_option('lastfm_nowplaying_width', 200));
+            echo '<input type="number" name="lastfm_nowplaying_width" value="' . $value . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Height
+    add_settings_field(
+        'lastfm_nowplaying_height',
+        'Widget Height (px)',
+        function () {
+            $value = intval(get_option('lastfm_nowplaying_height', 50));
+            echo '<input type="number" name="lastfm_nowplaying_height" value="' . $value . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Text Size
+    add_settings_field(
+        'lastfm_nowplaying_text_size',
+        'Text Size (px)',
+        function () {
+            $value = intval(get_option('lastfm_nowplaying_text_size', 14));
+            echo '<input type="number" name="lastfm_nowplaying_text_size" value="' . $value . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Scrolling toggle
+    add_settings_field(
+        'lastfm_nowplaying_scroll_enabled',
+        'Enable Scrolling',
+        function () {
+            $value = get_option('lastfm_nowplaying_scroll_enabled', 1);
+            echo '<input type="checkbox" name="lastfm_nowplaying_scroll_enabled" value="1" ' . checked(1, $value, false) . ' />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Scroll speed
+    add_settings_field(
+        'lastfm_nowplaying_scroll_speed',
+        'Scroll Speed (1–10)',
+        function () {
+            $value = intval(get_option('lastfm_nowplaying_scroll_speed', 5));
+            echo '<input type="number" min="1" max="10" name="lastfm_nowplaying_scroll_speed" value="' . $value . '" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Album art toggle
+    add_settings_field(
+        'lastfm_nowplaying_album_art',
+        'Show Album Art',
+        function () {
+            $value = get_option('lastfm_nowplaying_album_art', 1);
+            echo '<input type="checkbox" name="lastfm_nowplaying_album_art" value="1" ' . checked(1, $value, false) . ' />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Playcount toggle
+    add_settings_field(
+        'lastfm_nowplaying_playcount',
+        'Show Playcount Line',
+        function () {
+            $value = get_option('lastfm_nowplaying_playcount', 1);
+            echo '<input type="checkbox" name="lastfm_nowplaying_playcount" value="1" ' . checked(1, $value, false) . ' />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // Hyperlinked username toggle
     add_settings_field(
         'lastfm_nowplaying_username_link',
         'Hyperlink Username',
         function () {
             $value = get_option('lastfm_nowplaying_username_link', 1);
-            ?>
-            <input type="checkbox" name="lastfm_nowplaying_username_link" value="1" <?php checked(1, $value); ?> />
-            <label for="lastfm_nowplaying_username_link">
-                Make username a clickable red link in playcount line
-            </label>
-            <?php
+            echo '<input type="checkbox" name="lastfm_nowplaying_username_link" value="1" ' . checked(1, $value, false) . ' />';
+            echo '<label for="lastfm_nowplaying_username_link"> Make username a clickable red link in playcount line</label>';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
+    // API key
+    add_settings_field(
+        'lastfm_nowplaying_api_key',
+        'Last.fm API Key',
+        function () {
+            $value = esc_attr(get_option('lastfm_nowplaying_api_key', ''));
+            echo '<input type="text" name="lastfm_nowplaying_api_key" value="' . $value . '" class="regular-text" />';
         },
         'lastfm_nowplaying',
         'lastfm_nowplaying_section'
     );
 }
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
-
 
 // === Admin Settings Page ===
 function lastfm_nowplaying_settings_page() {

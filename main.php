@@ -349,7 +349,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $album_title = esc_html($track['album']['#text'] ?? 'Unknown Album');
             $album_url = esc_url($track['album']['url'] ?? '');
             $album_img = '';
-            $user_playcount = !empty($track['userplaycount']) ? intval($track['userplaycount']) : 0;
+            $user_playcount = isset($track['userplaycount']) ? intval($track['userplaycount']) : null;
 
             if (!empty($track['album']['image'])) {
                 foreach (array_reverse($track['album']['image']) as $img) {
@@ -386,7 +386,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                     </div>
                 </div>
 
-                <?php if ($show_playcount && $user_playcount >= 0): ?>
+                <?php if ($show_playcount): ?>
                     <div class="playcount-line">
                         <?php
                         $username_html = esc_html($username);
@@ -395,9 +395,11 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                         }
 
                         if ($user_playcount === 0) {
-                            echo $username_html . '\'s first scrobble!';
-                        } else {
+                            echo $username_html . "'s first scrobble!";
+                        } elseif ($user_playcount > 0) {
                             echo $username_html . ' has scrobbled this ' . intval($user_playcount) . ' times';
+                        } elseif ($user_playcount === null) {
+                            echo 'Playcount unavailable';
                         }
                         ?>
                     </div>

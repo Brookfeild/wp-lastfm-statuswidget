@@ -16,8 +16,6 @@ function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_width', array('default' => 200));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_height', array('default' => 50));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_enabled', array('default' => 1)); // default = TRUE
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_second_line_text', array('default' => 'Check out everything I listen to on last.fm!'));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_enabled', array('default' => 1));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_speed', array('default' => 5));
         // Album art toggle
@@ -90,30 +88,6 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_section'
     );
 
-    // Second line toggle
-    add_settings_field(
-        'lastfm_nowplaying_second_line_enabled',
-        'Enable Second Line',
-        function() {
-            $value = get_option('lastfm_nowplaying_second_line_enabled', 1);
-            $checked = $value ? 'checked' : '';
-            echo '<input type="checkbox" name="lastfm_nowplaying_second_line_enabled" value="1" ' . $checked . ' /> Enable';
-        },
-        'lastfm_nowplaying',
-        'lastfm_nowplaying_section'
-    );
-
-    // Second line text
-    add_settings_field(
-        'lastfm_nowplaying_second_line_text',
-        'Second Line Text',
-        function() {
-            $value = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
-            echo '<input type="text" style="width:400px" name="lastfm_nowplaying_second_line_text" value="' . esc_attr($value) . '" />';
-        },
-        'lastfm_nowplaying',
-        'lastfm_nowplaying_section'
-    );
 
     add_settings_field(
         'lastfm_nowplaying_scroll_enabled',
@@ -380,47 +354,42 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $album_url   = esc_url($track_info['album']['url'] ?? '');
             $album_title = esc_html($track_info['album']['title'] ?? ($track_info['album']['#text'] ?? 'Unknown Album'));
             $album_img = '';
+            $images = [];
             if (!empty($track_info['album']['image'])) {
-                foreach ($track_info['album']['image'] as $img) {
-                    if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
-                        $album_img = esc_url($img['#text']);
-                        break;
-                    }
-                }
+                $images = $track_info['album']['image'];
             } elseif (!empty($track_info['image'])) {
-                foreach ($track_info['image'] as $img) {
-                    if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
-                        $album_img = esc_url($img['#text']);
-                        break;
-                    }
+                $images = $track_info['image'];
+            }
+            foreach (array_reverse($images) as $img) {
+                if (!empty($img['#text'])) {
+                    $album_img = esc_url($img['#text']);
+                    break;
                 }
             }
             $user_playcount = !empty($track_info['userplaycount']) ? intval($track_info['userplaycount']) : 0;
         }
         ?>
-        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; overflow:hidden; display:flex; flex-direction:row; align-items:center; min-height:<?php echo $height; ?>px;">
+        <div class="lastfm-widget"<?php if ($height) echo ' style="height:' . intval($height) . 'px"'; ?>>
             <?php if ($show_album_art): ?>
-                <div style="margin-right:8px; flex-shrink:0;">
-                    <?php if (!empty($album_img)): ?>
-                        <a href="<?php echo $album_url; ?>" target="_blank">
-                            <img src="<?php echo $album_img; ?>" alt="<?php echo $album_title; ?>" style="width:48px; height:48px; object-fit:cover; border:1px solid #ccc;" />
-                        </a>
-                    <?php else: ?>
-                        <a href="<?php echo $album_url; ?>" target="_blank" style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:1px solid #ccc; font-size:10px; text-align:center; background:#f9f9f9; color:#333; text-decoration:none;">
-                            <?php echo $album_title; ?>
-                        </a>
-                    <?php endif; ?>
-                </div>
+                <?php if (!empty($album_img)): ?>
+                    <a href="<?php echo $album_url; ?>" target="_blank">
+                        <img src="<?php echo $album_img; ?>" alt="<?php echo $album_title; ?>" class="lastfm-album-art" />
+                    </a>
+                <?php else: ?>
+                    <a href="<?php echo $album_url; ?>" target="_blank" style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:1px solid #ccc; font-size:10px; text-align:center; background:#f9f9f9; color:#333; text-decoration:none;">
+                        <?php echo $album_title; ?>
+                    </a>
+                <?php endif; ?>
             <?php endif; ?>
             <div style="flex-grow:1; overflow:hidden;">
-                <div class="lastfm-track-text" style="font-size: <?php echo intval($text_size); ?>px; line-height:1.4em;">
+                <div class="lastfm-track-text">
                     <strong>Now Playing:</strong>
                     <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
                     by
                     <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
                 </div>
                 <?php if ($show_playcount && $user_playcount > 0) : ?>
-                    <div class="playcount-line" style="font-size: <?php echo intval($text_size); ?>px; line-height:1.4em;">
+                    <div class="playcount-line">
                         <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank" class="lastfm-username"><?php echo esc_html($username); ?></a>
                         <span> has streamed this <?php echo intval($user_playcount); ?> times</span>
                     </div>
@@ -428,7 +397,33 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             </div>
         </div>
         <style>
+        .lastfm-widget {
+            border: 1px solid #000;
+            padding: 5px;
+            width: <?php echo $width; ?>px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            min-height: <?php echo $height; ?>px;
+        }
+        .lastfm-album-art {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border: 1px solid #ccc;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .lastfm-track-text {
+            font-size: <?php echo intval($text_size); ?>px;
+            line-height: 1.4em;
+            display: inline-block;
+            padding-right: 0;
+        }
         .playcount-line {
+            font-size: <?php echo intval($text_size); ?>px;
+            line-height: 1.4em;
             color: #000;
             margin-top: 4px;
         }

@@ -160,17 +160,17 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_section'
     );
 
-    // API key
-    // add_settings_field(
-    //     'lastfm_nowplaying_api_key',
-    //     'Last.fm API Key',
-    //     function () {
-    //         $value = esc_attr(get_option('lastfm_nowplaying_api_key', ''));
-    //         echo '<input type="text" name="lastfm_nowplaying_api_key" value="' . $value . '" class="regular-text" />';
-    //     },
-    //     'lastfm_nowplaying',
-    //     'lastfm_nowplaying_section'
-    // );
+    API key
+    add_settings_field(
+        'lastfm_nowplaying_api_key',
+        'Last.fm API Key',
+        function () {
+            $value = esc_attr(get_option('lastfm_nowplaying_api_key', ''));
+            echo '<input type="text" name="lastfm_nowplaying_api_key" value="' . $value . '" class="regular-text" />';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
 }
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
 

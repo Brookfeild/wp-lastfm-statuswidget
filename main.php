@@ -18,25 +18,30 @@ function lastfm_nowplaying_register_settings() {
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_text_size', array('default' => 14));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_enabled', array('default' => 1));
     register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_scroll_speed', array('default' => 5));
-        // Album art toggle
-        register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_album_art', [
-            'type' => 'boolean',
-            'default' => 1,
-            'sanitize_callback' => 'absint',
-        ]);
 
-        // Playcount toggle
-        register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_playcount', [
-            'type' => 'boolean',
-            'default' => 1,
-            'sanitize_callback' => 'absint',
-        ]);
+    // Album art toggle
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_album_art', [
+        'type' => 'boolean',
+        'default' => 1,
+        'sanitize_callback' => 'absint',
+    ]);
 
-        register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username_link', [
-            'type' => 'boolean',
-            'default' => 1,
-            'sanitize_callback' => 'absint',
-        ]);
+    // Playcount toggle
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_playcount', [
+        'type' => 'boolean',
+        'default' => 1,
+        'sanitize_callback' => 'absint',
+    ]);
+
+    // Hyperlinked username toggle
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username_link', [
+        'type' => 'boolean',
+        'default' => 1,
+        'sanitize_callback' => 'absint',
+    ]);
+
+    // API key
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_api_key');
 
     // Add section
     add_settings_section(
@@ -46,155 +51,22 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying'
     );
 
-    // Register API key option
-    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_api_key');
-
-        } else {
-            // Read API key from settings
-            $api_key = get_option('lastfm_nowplaying_api_key', '');
-            if (empty($api_key)) {
-                echo '<em>Please set your Last.fm API key in the settings.</em>';
-                return;
-            }
-
-            // Transient cache: reduce duplicate API calls per page load
-            $cache_key = 'lastfm_widget_' . md5($username);
-            $cached = get_transient($cache_key);
-            $recent_data = null;
-            $info_data = null;
-
-            if ($cached && is_array($cached)) {
-                $recent_data = $cached['recent'] ?? null;
-                $info_data = $cached['info'] ?? null;
-            } else {
-                $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=" . urlencode($username) . "&api_key={$api_key}&format=json&limit=1";
-                $recent_response = wp_remote_get($recent_url);
-
-                if (is_wp_error($recent_response)) {
-                    error_log('Last.fm recenttracks error: ' . $recent_response->get_error_message());
-                    echo '<em>Error contacting Last.fm.</em>';
-                    return;
-                }
-
-                $recent_body = wp_remote_retrieve_body($recent_response);
-                $recent_data = json_decode($recent_body, true);
-
-                if (!$recent_data || empty($recent_data['recenttracks']['track'][0])) {
-                    if (!empty($recent_data['message'])) {
-                        echo '<em>Last.fm error: ' . esc_html($recent_data['message']) . '</em>';
-                    } else {
-                        echo '<em>No track data available.</em>';
-                    }
-                    return;
-                }
-
-                // Prepare track.getInfo request using the recenttracks result
-                $track_for_info = $recent_data['recenttracks']['track'][0];
-                $track_name_for_info = isset($track_for_info['name']) ? $track_for_info['name'] : '';
-                $artist_name_for_info = isset($track_for_info['artist']['#text']) ? $track_for_info['artist']['#text'] : '';
-
-                if ($track_name_for_info && $artist_name_for_info) {
-                    $track_info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist="
-                        . urlencode($artist_name_for_info)
-                        . "&track=" . urlencode($track_name_for_info)
-                        . "&username=" . urlencode($username)
-                        . "&format=json";
-
-                    $info_response = wp_remote_get($track_info_url);
-                    if (is_wp_error($info_response)) {
-                        error_log('Last.fm track.getInfo error: ' . $info_response->get_error_message());
-                    } else {
-                        $info_body = wp_remote_retrieve_body($info_response);
-                        $info_data = json_decode($info_body, true);
-                    }
-                }
-
-                // Cache both responses for 60 seconds
-                $to_cache = ['recent' => $recent_data, 'info' => $info_data];
-                set_transient($cache_key, $to_cache, 60);
-            }
-
-            // recent_data must exist here (we checked earlier or retrieved from cache)
-            $track = $recent_data['recenttracks']['track'][0];
-            $track_name = isset($track['name']) ? $track['name'] : 'Unknown Track';
-            $artist_name = isset($track['artist']['#text']) ? $track['artist']['#text'] : 'Unknown Artist';
-            $track_url = esc_url(isset($track['url']) ? $track['url'] : '');
-            $artist_url = esc_url(isset($track['artist']['url']) ? $track['artist']['url'] : '');
-
-            // Keep a raw album title for building fallback URLs, and an escaped title for display
-            $raw_album_title = isset($track['album']['#text']) ? $track['album']['#text'] : 'Unknown Album';
-            $album_title = esc_html($raw_album_title);
-
-            // Use API-provided album URL when available, otherwise fallback to Last.fm album page
-            $album_url = esc_url(isset($track['album']['url']) ? $track['album']['url'] : '');
-            if (empty($album_url)) {
-                $album_url = 'https://www.last.fm/music/' . urlencode($artist_name) . '/' . urlencode($raw_album_title);
-            }
-
-            $album_img = '';
-            $user_playcount = null; // default to null when unavailable
-
-            // Parse info_data from track.getInfo (either cached or fresh)
-            $info_track = $info_data['track'] ?? null;
-            if ($info_track) {
-                if (isset($info_track['userplaycount'])) {
-                    $user_playcount = intval($info_track['userplaycount']);
-                }
-                if (!empty($info_track['album']['url'])) {
-                    $album_url = esc_url($info_track['album']['url']);
-                }
-
-                $images = $info_track['album']['image'] ?? [];
-                if (!empty($images) && is_array($images)) {
-                    $album_img = '';
-                    foreach (['extralarge', 'large', 'medium', 'small'] as $size) {
-                        foreach ($images as $img) {
-                            if (!empty($img['#text']) && isset($img['size']) && $img['size'] === $size) {
-                                $album_img = esc_url($img['#text']);
-                                break 2;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // If info_data didn't provide an image, fall back to the recenttracks data
-            if (empty($album_img) && !empty($track['album']['image']) && is_array($track['album']['image'])) {
-                $images = $track['album']['image'];
-                foreach (['extralarge', 'large', 'medium', 'small'] as $size) {
-                    foreach ($images as $img) {
-                        if (!empty($img['#text']) && isset($img['size']) && $img['size'] === $size) {
-                            $album_img = esc_url($img['#text']);
-                            break 2;
-                        }
-                    }
-                }
-            }
-
-            // Final fallback: plugin placeholder image (only if it exists)
-            if (empty($album_img)) {
-                $placeholder_path = plugin_dir_path(__FILE__) . 'assets/placeholder.png';
-                if (file_exists($placeholder_path)) {
-                    $album_img = esc_url(plugin_dir_url(__FILE__) . 'assets/placeholder.png');
-                } else {
-                    $album_img = '';
-                }
-            }
-        }
-
-        add_settings_field(
-            'lastfm_nowplaying_username_link',
-            'Hyperlink Username',
-            function () {
-                $value = get_option('lastfm_nowplaying_username_link', 1);
-                ?>
-                <input type="checkbox" name="lastfm_nowplaying_username_link" value="1" <?php checked(1, $value); ?> />
-                <label for="lastfm_nowplaying_username_link">Make username a clickable red link in playcount line</label>
-                <?php
-            },
-            'lastfm_nowplaying',
-            'lastfm_nowplaying_section'
-        );
+    // Add field: Hyperlink Username
+    add_settings_field(
+        'lastfm_nowplaying_username_link',
+        'Hyperlink Username',
+        function () {
+            $value = get_option('lastfm_nowplaying_username_link', 1);
+            ?>
+            <input type="checkbox" name="lastfm_nowplaying_username_link" value="1" <?php checked(1, $value); ?> />
+            <label for="lastfm_nowplaying_username_link">
+                Make username a clickable red link in playcount line
+            </label>
+            <?php
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
 }
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
 

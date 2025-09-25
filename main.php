@@ -3,7 +3,7 @@
 Plugin Name: Last.fm Status Widget
 Description: Display the currently playing or last played track for a Last.fm username.
 Version: 1.0
-Author: Tyler
+Author: Tyler Ricketts
 */
 
 if (!defined('ABSPATH')) exit;
@@ -204,34 +204,38 @@ function lastfm_nowplaying_settings_page() {
                 <?php
                 // Fetch saved options
                 $username  = get_option('lastfm_nowplaying_username', '');
+                $api_key   = get_option('lastfm_nowplaying_api_key', '');
 
-                if ($username) {
-                    if (class_exists('LastFM_NowPlaying_Widget')) {
-                        $widget = new LastFM_NowPlaying_Widget();
-
-                        // Build an $instance array like WP would normally pass
-                        $instance = [
-                            'username'        => $username,
-                            'width'           => get_option('lastfm_nowplaying_width', 200),
-                            'height'          => get_option('lastfm_nowplaying_height', 50),
-                            'text_size'       => get_option('lastfm_nowplaying_text_size', 14),
-                            'scroll_enabled'  => get_option('lastfm_nowplaying_scroll_enabled', 1),
-                            'scroll_speed'    => get_option('lastfm_nowplaying_scroll_speed', 1),
-                            'show_album_art'  => get_option('lastfm_nowplaying_album_art', 1),
-                            'show_playcount'  => get_option('lastfm_nowplaying_playcount', 1),
-                        ];
-
-                        // Make sure render method is public
-                        if (method_exists($widget, 'render_lastfm_widget_output')) {
-                            $widget->render_lastfm_widget_output($instance, true);
-                        } else {
-                            echo '<em>Preview unavailable: render method not found.</em>';
-                        }
-                    } else {
-                        echo '<em>Preview unavailable: widget class not loaded.</em>';
-                    }
+                if (!$username || !$api_key) {
+                    echo '<em>Please enter your Last.fm username and API key above to see a preview.</em>';
                 } else {
-                    echo '<em>Enter a Last.fm username above to see a preview.</em>';
+                    try {
+                        if (class_exists('LastFM_NowPlaying_Widget')) {
+                            $widget = new LastFM_NowPlaying_Widget();
+
+                            // Build an $instance array like WP would normally pass
+                            $instance = [
+                                'username'        => $username,
+                                'width'           => get_option('lastfm_nowplaying_width', 200),
+                                'height'          => get_option('lastfm_nowplaying_height', 50),
+                                'text_size'       => get_option('lastfm_nowplaying_text_size', 14),
+                                'scroll_enabled'  => get_option('lastfm_nowplaying_scroll_enabled', 1),
+                                'scroll_speed'    => get_option('lastfm_nowplaying_scroll_speed', 1),
+                                'show_album_art'  => get_option('lastfm_nowplaying_album_art', 1),
+                                'show_playcount'  => get_option('lastfm_nowplaying_playcount', 1),
+                            ];
+
+                            if (method_exists($widget, 'render_lastfm_widget_output')) {
+                                $widget->render_lastfm_widget_output($instance, true);
+                            } else {
+                                echo '<em>Preview not available (render method missing).</em>';
+                            }
+                        } else {
+                            echo '<em>Preview not available (widget class missing).</em>';
+                        }
+                    } catch (Exception $e) {
+                        echo '<em>Preview error: ' . esc_html($e->getMessage()) . '</em>';
+                    }
                 }
                 ?>
             </div>
@@ -365,17 +369,17 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             }
 
             $track = $recent_data['recenttracks']['track'][0];
-            $track_name = $track['name'];
-            $artist_name = $track['artist']['#text'];
-            $track_url = esc_url($track['url'] ?? '');
-            $artist_url = esc_url($track['artist']['url'] ?? '');
+            $track_name = isset($track['name']) ? $track['name'] : 'Unknown Track';
+            $artist_name = isset($track['artist']['#text']) ? $track['artist']['#text'] : 'Unknown Artist';
+            $track_url = esc_url(isset($track['url']) ? $track['url'] : '');
+            $artist_url = esc_url(isset($track['artist']['url']) ? $track['artist']['url'] : '');
 
             // Keep a raw album title for building fallback URLs, and an escaped title for display
-            $raw_album_title = $track['album']['#text'] ?? 'Unknown Album';
+            $raw_album_title = isset($track['album']['#text']) ? $track['album']['#text'] : 'Unknown Album';
             $album_title = esc_html($raw_album_title);
 
             // Use API-provided album URL when available, otherwise fallback to Last.fm album page
-            $album_url = esc_url($track['album']['url'] ?? '');
+            $album_url = esc_url(isset($track['album']['url']) ? $track['album']['url'] : '');
             if (empty($album_url)) {
                 $album_url = 'https://www.last.fm/music/' . urlencode($artist_name) . '/' . urlencode($raw_album_title);
             }
@@ -407,17 +411,17 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                     }
 
                     // Pick the 'large' image when possible, otherwise fallback to other sizes
-                    if (!empty($info_track['album']['image'])) {
+                    if (!empty($info_track['album']['image']) && is_array($info_track['album']['image'])) {
                         $preferred = '';
                         $fallback = '';
                         foreach ($info_track['album']['image'] as $img) {
                             if (empty($img['#text'])) continue;
                             // prefer 'large', then 'extralarge', then any available
-                            if ($img['size'] === 'large') {
+                            if (isset($img['size']) && $img['size'] === 'large') {
                                 $preferred = $img['#text'];
                                 break;
                             }
-                            if ($img['size'] === 'extralarge' && empty($preferred)) {
+                            if (isset($img['size']) && $img['size'] === 'extralarge' && empty($preferred)) {
                                 $preferred = $img['#text'];
                             }
                             if (empty($fallback)) {

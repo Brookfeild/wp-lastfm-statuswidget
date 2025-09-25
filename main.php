@@ -358,15 +358,78 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             }
 
             $album_img = '';
-            $user_playcount = isset($track['userplaycount']) ? intval($track['userplaycount']) : null;
+            $user_playcount = null; // default to null when unavailable
 
-            if (!empty($track['album']['image'])) {
-                foreach (array_reverse($track['album']['image']) as $img) {
-                    if (!empty($img['#text'])) {
-                        $album_img = esc_url($img['#text']);
-                        break;
+            // Prefer detailed track.getInfo which can include userplaycount and better album images
+            $track_info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist="
+                . urlencode($artist_name)
+                . "&track=" . urlencode($track_name)
+                . "&username=" . urlencode($username)
+                . "&format=json";
+
+            $info_response = wp_remote_get($track_info_url);
+            if (!is_wp_error($info_response)) {
+                $info_data = json_decode(wp_remote_retrieve_body($info_response), true);
+                $info_track = $info_data['track'] ?? null;
+
+                if ($info_track) {
+                    // userplaycount is only present when username is provided to track.getInfo
+                    if (isset($info_track['userplaycount'])) {
+                        $user_playcount = intval($info_track['userplaycount']);
+                    }
+
+                    // Album URL from track.getInfo when available
+                    if (!empty($info_track['album']['url'])) {
+                        $album_url = esc_url($info_track['album']['url']);
+                    }
+
+                    // Pick the 'large' image when possible, otherwise fallback to other sizes
+                    if (!empty($info_track['album']['image'])) {
+                        $preferred = '';
+                        $fallback = '';
+                        foreach ($info_track['album']['image'] as $img) {
+                            if (empty($img['#text'])) continue;
+                            // prefer 'large', then 'extralarge', then any available
+                            if ($img['size'] === 'large') {
+                                $preferred = $img['#text'];
+                                break;
+                            }
+                            if ($img['size'] === 'extralarge' && empty($preferred)) {
+                                $preferred = $img['#text'];
+                            }
+                            if (empty($fallback)) {
+                                $fallback = $img['#text'];
+                            }
+                        }
+                        $album_img = esc_url($preferred ?: $fallback);
                     }
                 }
+            }
+
+            // If track.getInfo didn't provide an image, fall back to the recenttracks data
+            if (empty($album_img) && !empty($track['album']['image'])) {
+                // prefer large if available
+                $found = '';
+                $fallback = '';
+                foreach ($track['album']['image'] as $img) {
+                    if (empty($img['#text'])) continue;
+                    if ($img['size'] === 'large') {
+                        $found = $img['#text'];
+                        break;
+                    }
+                    if ($img['size'] === 'extralarge' && empty($found)) {
+                        $found = $img['#text'];
+                    }
+                    if (empty($fallback)) {
+                        $fallback = $img['#text'];
+                    }
+                }
+                $album_img = esc_url($found ?: $fallback);
+            }
+
+            // Final fallback: plugin placeholder image
+            if (empty($album_img)) {
+                $album_img = esc_url(plugin_dir_url(__FILE__) . 'assets/placeholder.png');
             }
         }
 

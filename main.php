@@ -145,7 +145,6 @@ function lastfm_nowplaying_register_settings() {
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
 
 
-// === Add settings page to WP Admin ===
 // === Admin Settings Page ===
 function lastfm_nowplaying_settings_page() {
     add_options_page(
@@ -167,20 +166,34 @@ function lastfm_nowplaying_settings_page() {
 
                 <h2>Widget Preview</h2>
                 <?php
-                // Fetch saved or default settings
+                // Fetch saved options
                 $username  = get_option('lastfm_nowplaying_username', '');
-                $width     = get_option('lastfm_nowplaying_width', 200);
-                $height    = get_option('lastfm_nowplaying_height', 50);
-                $text_size = get_option('lastfm_nowplaying_text_size', 14);
-                $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
-                $second_line_text = get_option(
-                    'lastfm_nowplaying_second_line_text',
-                    'Check out everything I listen to on last.fm!'
-                );
 
                 if ($username) {
-                    $widget = new LastFM_NowPlaying_Widget();
-                    $widget->render_lastfm_widget_output([], true);
+                    if (class_exists('LastFM_NowPlaying_Widget')) {
+                        $widget = new LastFM_NowPlaying_Widget();
+
+                        // Build an $instance array like WP would normally pass
+                        $instance = [
+                            'username'                 => $username,
+                            'width'                    => get_option('lastfm_nowplaying_width', 200),
+                            'height'                   => get_option('lastfm_nowplaying_height', 50),
+                            'text_size'                => get_option('lastfm_nowplaying_text_size', 14),
+                            'scroll_enabled'           => get_option('lastfm_nowplaying_scroll_enabled', 1),
+                            'scroll_speed'             => get_option('lastfm_nowplaying_scroll_speed', 1),
+                            'album_art_enabled'        => get_option('lastfm_nowplaying_album_art_enabled', 1),
+                            'show_playcount'           => get_option('lastfm_nowplaying_show_playcount', 1),
+                        ];
+
+                        // Make sure render method is public
+                        if (method_exists($widget, 'render_lastfm_widget_output')) {
+                            $widget->render_lastfm_widget_output($instance, true);
+                        } else {
+                            echo '<em>Preview unavailable: render method not found.</em>';
+                        }
+                    } else {
+                        echo '<em>Preview unavailable: widget class not loaded.</em>';
+                    }
                 } else {
                     echo '<em>Enter a Last.fm username above to see a preview.</em>';
                 }
@@ -191,7 +204,6 @@ function lastfm_nowplaying_settings_page() {
     );
 }
 add_action('admin_menu', 'lastfm_nowplaying_settings_page');
-
 
 // === Shared CSS + JS for scrolling text ===
 function lastfm_nowplaying_enqueue_scripts() {
@@ -280,7 +292,7 @@ add_action('wp_footer', 'lastfm_nowplaying_enqueue_scripts');
 add_action('admin_footer', 'lastfm_nowplaying_enqueue_scripts');
 
 class LastFM_NowPlaying_Widget extends WP_Widget {
-    private function render_lastfm_widget_output($instance, $preview = false) {
+    public function render_lastfm_widget_output($instance, $preview = false) {
         $width = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
         $height = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
         $text_size = isset($instance['text_size']) ? intval($instance['text_size']) : get_option('lastfm_nowplaying_text_size', 14);

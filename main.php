@@ -46,6 +46,22 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying'
     );
 
+    // Register API key option
+    register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_api_key');
+
+    // API Key field
+    add_settings_field(
+        'lastfm_nowplaying_api_key',
+        'Last.fm API Key',
+        function () {
+            $value = get_option('lastfm_nowplaying_api_key', '');
+            echo '<input type="text" name="lastfm_nowplaying_api_key" value="' . esc_attr($value) . '" class="regular-text" />';
+            echo '<p class="description">Enter your personal Last.fm API key. Required for the widget to work.</p>';
+        },
+        'lastfm_nowplaying',
+        'lastfm_nowplaying_section'
+    );
+
     // Username
     add_settings_field(
         'lastfm_nowplaying_username',
@@ -195,14 +211,14 @@ function lastfm_nowplaying_settings_page() {
 
                         // Build an $instance array like WP would normally pass
                         $instance = [
-                            'username'                 => $username,
-                            'width'                    => get_option('lastfm_nowplaying_width', 200),
-                            'height'                   => get_option('lastfm_nowplaying_height', 50),
-                            'text_size'                => get_option('lastfm_nowplaying_text_size', 14),
-                            'scroll_enabled'           => get_option('lastfm_nowplaying_scroll_enabled', 1),
-                            'scroll_speed'             => get_option('lastfm_nowplaying_scroll_speed', 1),
-                            'album_art_enabled'        => get_option('lastfm_nowplaying_album_art_enabled', 1),
-                            'show_playcount'           => get_option('lastfm_nowplaying_show_playcount', 1),
+                            'username'        => $username,
+                            'width'           => get_option('lastfm_nowplaying_width', 200),
+                            'height'          => get_option('lastfm_nowplaying_height', 50),
+                            'text_size'       => get_option('lastfm_nowplaying_text_size', 14),
+                            'scroll_enabled'  => get_option('lastfm_nowplaying_scroll_enabled', 1),
+                            'scroll_speed'    => get_option('lastfm_nowplaying_scroll_speed', 1),
+                            'show_album_art'  => get_option('lastfm_nowplaying_album_art', 1),
+                            'show_playcount'  => get_option('lastfm_nowplaying_playcount', 1),
                         ];
 
                         // Make sure render method is public
@@ -326,18 +342,25 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $album_title = "Flower Boy";
             $user_playcount = 999;
         } else {
-            $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
-            $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
-            $recent_response = wp_remote_get($recent_url);
-
-            if (is_wp_error($recent_response)) {
-                echo 'Error fetching track.';
+            // Read API key from settings
+            $api_key = get_option('lastfm_nowplaying_api_key', '');
+            if (empty($api_key)) {
+                echo '<em>Please set your Last.fm API key in the settings.</em>';
                 return;
             }
 
-            $recent_data = json_decode(wp_remote_retrieve_body($recent_response), true);
-            if (empty($recent_data['recenttracks']['track'][0])) {
-                echo 'No tracks found.';
+            $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=" . urlencode($username) . "&api_key={$api_key}&format=json&limit=1";
+            $recent_response = wp_remote_get($recent_url);
+
+            if (is_wp_error($recent_response)) {
+                echo '<em>Error contacting Last.fm.</em>';
+                return;
+            }
+
+            $recent_body = wp_remote_retrieve_body($recent_response);
+            $recent_data = json_decode($recent_body, true);
+            if (!$recent_data || empty($recent_data['recenttracks']['track'][0])) {
+                echo '<em>No track data available.</em>';
                 return;
             }
 

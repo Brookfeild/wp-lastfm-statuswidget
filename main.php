@@ -38,6 +38,19 @@ function lastfm_nowplaying_register_settings() {
     );
 
     // === Fields ===
+        add_settings_field(
+            'lastfm_nowplaying_api_key',
+            'Last.fm API Key',
+            function () {
+                $value = get_option('lastfm_nowplaying_api_key', '');
+                ?>
+                <input type="text" name="lastfm_nowplaying_api_key" value="<?php echo esc_attr($value); ?>" class="regular-text" />
+                <p class="description">API key required in order to work</p>
+                <?php
+            },
+            'lastfm_nowplaying',
+            'lastfm_nowplaying_section'
+        );
     // Username
     add_settings_field(
         'lastfm_nowplaying_username',
@@ -148,16 +161,16 @@ function lastfm_nowplaying_register_settings() {
     );
 
     // API key
-    add_settings_field(
-        'lastfm_nowplaying_api_key',
-        'Last.fm API Key',
-        function () {
-            $value = esc_attr(get_option('lastfm_nowplaying_api_key', ''));
-            echo '<input type="text" name="lastfm_nowplaying_api_key" value="' . $value . '" class="regular-text" />';
-        },
-        'lastfm_nowplaying',
-        'lastfm_nowplaying_section'
-    );
+    // add_settings_field(
+    //     'lastfm_nowplaying_api_key',
+    //     'Last.fm API Key',
+    //     function () {
+    //         $value = esc_attr(get_option('lastfm_nowplaying_api_key', ''));
+    //         echo '<input type="text" name="lastfm_nowplaying_api_key" value="' . $value . '" class="regular-text" />';
+    //     },
+    //     'lastfm_nowplaying',
+    //     'lastfm_nowplaying_section'
+    // );
 }
 add_action('admin_init', 'lastfm_nowplaying_register_settings');
 

@@ -346,8 +346,17 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $artist_name = $track['artist']['#text'];
             $track_url = esc_url($track['url'] ?? '');
             $artist_url = esc_url($track['artist']['url'] ?? '');
-            $album_title = esc_html($track['album']['#text'] ?? 'Unknown Album');
+
+            // Keep a raw album title for building fallback URLs, and an escaped title for display
+            $raw_album_title = $track['album']['#text'] ?? 'Unknown Album';
+            $album_title = esc_html($raw_album_title);
+
+            // Use API-provided album URL when available, otherwise fallback to Last.fm album page
             $album_url = esc_url($track['album']['url'] ?? '');
+            if (empty($album_url)) {
+                $album_url = 'https://www.last.fm/music/' . urlencode($artist_name) . '/' . urlencode($raw_album_title);
+            }
+
             $album_img = '';
             $user_playcount = isset($track['userplaycount']) ? intval($track['userplaycount']) : null;
 

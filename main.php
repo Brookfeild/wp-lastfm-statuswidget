@@ -333,6 +333,116 @@ add_action('wp_footer', 'lastfm_nowplaying_enqueue_scripts');
 add_action('admin_footer', 'lastfm_nowplaying_enqueue_scripts');
 
 class LastFM_NowPlaying_Widget extends WP_Widget {
+    private function render_lastfm_widget_output($instance, $preview = false) {
+        $width = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
+        $height = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
+        $text_size = isset($instance['text_size']) ? intval($instance['text_size']) : get_option('lastfm_nowplaying_text_size', 14);
+        $show_album_art = isset($instance['show_album_art']) ? $instance['show_album_art'] : get_option('lastfm_nowplaying_album_art', 1);
+        $show_playcount = isset($instance['show_playcount']) ? $instance['show_playcount'] : get_option('lastfm_nowplaying_playcount', 1);
+        $username = isset($instance['username']) ? $instance['username'] : get_option('lastfm_nowplaying_username', 'demoUser');
+        if ($preview) {
+            $track_name = "Believe";
+            $artist_name = "Cher";
+            $track_url = "https://www.last.fm/music/Cher/_/Believe";
+            $artist_url = "https://www.last.fm/music/Cher";
+            $album_url = "https://www.last.fm/music/Cher/Believe";
+            $album_img = "http://userserve-ak.last.fm/serve/64/8674593.jpg";
+            $album_title = "Believe";
+            $user_playcount = 281445;
+        } else {
+            $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
+            $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
+            $recent_response = wp_remote_get($recent_url);
+            if (is_wp_error($recent_response)) {
+                echo 'Error fetching track.';
+                return;
+            }
+            $recent_data = json_decode(wp_remote_retrieve_body($recent_response), true);
+            if (empty($recent_data['recenttracks']['track'][0])) {
+                echo 'No tracks found.';
+                return;
+            }
+            $track = $recent_data['recenttracks']['track'][0];
+            $track_name  = $track['name'];
+            $artist_name = $track['artist']['#text'];
+            $title       = isset($track['@attr']['nowplaying']) ? 'Now Playing:' : 'Last Played:';
+            $info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist=" . urlencode($artist_name) . "&track=" . urlencode($track_name) . "&username=" . urlencode($username) . "&format=json";
+            $info_res = wp_remote_get($info_url);
+            $track_info = $track;
+            if (!is_wp_error($info_res)) {
+                $info_data = json_decode(wp_remote_retrieve_body($info_res), true);
+                if (!empty($info_data['track'])) {
+                    $track_info = array_merge($track, $info_data['track']);
+                }
+            }
+            $track_url   = esc_url($track_info['url'] ?? '');
+            $artist_url  = esc_url($track_info['artist']['url'] ?? '');
+            $album_url   = esc_url($track_info['album']['url'] ?? '');
+            $album_title = esc_html($track_info['album']['title'] ?? ($track_info['album']['#text'] ?? 'Unknown Album'));
+            $album_img = '';
+            if (!empty($track_info['album']['image'])) {
+                foreach ($track_info['album']['image'] as $img) {
+                    if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
+                        $album_img = esc_url($img['#text']);
+                        break;
+                    }
+                }
+            } elseif (!empty($track_info['image'])) {
+                foreach ($track_info['image'] as $img) {
+                    if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
+                        $album_img = esc_url($img['#text']);
+                        break;
+                    }
+                }
+            }
+            $user_playcount = !empty($track_info['userplaycount']) ? intval($track_info['userplaycount']) : 0;
+        }
+        ?>
+        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; overflow:hidden; display:flex; flex-direction:row; align-items:center; min-height:<?php echo $height; ?>px;">
+            <?php if ($show_album_art): ?>
+                <div style="margin-right:8px; flex-shrink:0;">
+                    <?php if (!empty($album_img)): ?>
+                        <a href="<?php echo $album_url; ?>" target="_blank">
+                            <img src="<?php echo $album_img; ?>" alt="<?php echo $album_title; ?>" style="width:48px; height:48px; object-fit:cover; border:1px solid #ccc;" />
+                        </a>
+                    <?php else: ?>
+                        <a href="<?php echo $album_url; ?>" target="_blank" style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:1px solid #ccc; font-size:10px; text-align:center; background:#f9f9f9; color:#333; text-decoration:none;">
+                            <?php echo $album_title; ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+            <div style="flex-grow:1; overflow:hidden;">
+                <div class="lastfm-track-text" style="font-size: <?php echo intval($text_size); ?>px; line-height:1.4em;">
+                    <strong>Now Playing:</strong>
+                    <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
+                    by
+                    <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+                </div>
+                <?php if ($show_playcount && $user_playcount > 0) : ?>
+                    <div class="playcount-line" style="font-size: <?php echo intval($text_size); ?>px; line-height:1.4em;">
+                        <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank" class="lastfm-username"><?php echo esc_html($username); ?></a>
+                        <span> has streamed this <?php echo intval($user_playcount); ?> times</span>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <style>
+        .playcount-line {
+            color: #000;
+            margin-top: 4px;
+        }
+        .playcount-line .lastfm-username {
+            color: #d51007;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .playcount-line .lastfm-username:hover {
+            text-decoration: underline;
+        }
+        </style>
+        <?php
+    }
 
     public function __construct() {
         parent::__construct(
@@ -344,28 +454,25 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
 
     // Widget settings form in admin
     public function form($instance) {
-        $width  = isset($instance['width']) ? $instance['width'] : 200;
-        $height = isset($instance['height']) ? $instance['height'] : 50;
-        $text_size = isset($instance['text_size']) ? $instance['text_size'] : 14;
-
+        $this->render_lastfm_widget_output($instance, true);
         ?>
         <p>
             <label for="<?php echo $this->get_field_id('width'); ?>">Box Width (px):</label>
             <input class="widefat" id="<?php echo $this->get_field_id('width'); ?>" 
                    name="<?php echo $this->get_field_name('width'); ?>" type="number" 
-                   value="<?php echo esc_attr($width); ?>" />
+                   value="<?php echo esc_attr(isset($instance['width']) ? $instance['width'] : 200); ?>" />
         </p>
         <p>
             <label for="<?php echo $this->get_field_id('height'); ?>">Box Height (px):</label>
             <input class="widefat" id="<?php echo $this->get_field_id('height'); ?>" 
                    name="<?php echo $this->get_field_name('height'); ?>" type="number" 
-                   value="<?php echo esc_attr($height); ?>" />
+                   value="<?php echo esc_attr(isset($instance['height']) ? $instance['height'] : 50); ?>" />
         </p>
         <p>
             <label for="<?php echo $this->get_field_id('text_size'); ?>">Text Size (px):</label>
             <input class="widefat" id="<?php echo $this->get_field_id('text_size'); ?>" 
                    name="<?php echo $this->get_field_name('text_size'); ?>" type="number" 
-                   value="<?php echo esc_attr($text_size); ?>" />
+                   value="<?php echo esc_attr(isset($instance['text_size']) ? $instance['text_size'] : 14); ?>" />
         </p>
         <?php
     }
@@ -381,196 +488,8 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
 
     // Frontend display
     public function widget($args, $instance) {
-        $username = get_option('lastfm_nowplaying_username', '');
-        if (!$username) {
-            echo $args['before_widget'] . 'Please set a Last.fm username in Settings.' . $args['after_widget'];
-            return;
-        }
-
-        // Settings
-        $second_line_enabled = get_option('lastfm_nowplaying_second_line_enabled', 1);
-        $second_line_text    = get_option('lastfm_nowplaying_second_line_text', 'Check out everything I listen to on last.fm!');
-        $scroll_enabled      = get_option('lastfm_nowplaying_scroll_enabled', 1);
-        $scroll_speed        = get_option('lastfm_nowplaying_scroll_speed', 5); // 1-10
-        $show_album_art      = get_option('lastfm_nowplaying_album_art', 1);
-        $show_playcount      = get_option('lastfm_nowplaying_playcount', 1);
-        $width               = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
-        $height              = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
-        $text_size           = isset($instance['text_size']) ? $instance['text_size'] : get_option('lastfm_nowplaying_text_size', 14);
-
-        // Map scroll speed (1=slow, 10=fast) to animation duration (s)
-        $speed_map = [
-            1 => 20,  // extra slow
-            2 => 18,
-            3 => 16,
-            4 => 14,
-            5 => 12,
-            6 => 10,
-            7 => 8,
-            8 => 6,
-            9 => 4,
-            10 => 2  // fastest
-        ];
-
-        $animation_duration = isset($speed_map[$scroll_speed]) ? $speed_map[$scroll_speed] : 12;
-
-
-        // Fetch recent track from Last.fm API
-        $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
-        $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
-        $recent_response = wp_remote_get($recent_url);
-        if (is_wp_error($recent_response)) {
-            echo $args['before_widget'] . 'Error fetching track.' . $args['after_widget'];
-            return;
-        }
-        $recent_data = json_decode(wp_remote_retrieve_body($recent_response), true);
-        if (empty($recent_data['recenttracks']['track'][0])) {
-            echo $args['before_widget'] . 'No tracks found.' . $args['after_widget'];
-            return;
-        }
-        $track = $recent_data['recenttracks']['track'][0];
-        $track_name  = $track['name'];
-        $artist_name = $track['artist']['#text'];
-        $now_playing = isset($track['@attr']['nowplaying']);
-        $title       = $now_playing ? 'Now Playing:' : 'Last Played:';
-        // Fetch track.getInfo for full details (userplaycount, album art, links)
-        $info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist=" . urlencode($artist_name) . "&track=" . urlencode($track_name) . "&username=" . urlencode($username) . "&format=json";
-        $info_res = wp_remote_get($info_url);
-        $track_info = $track;
-        if (!is_wp_error($info_res)) {
-            $info_data = json_decode(wp_remote_retrieve_body($info_res), true);
-            if (!empty($info_data['track'])) {
-                $track_info = array_merge($track, $info_data['track']);
-            }
-        }
-        // Prepare URLs and album art
-        $track_url   = esc_url($track_info['url'] ?? '');
-        $artist_url  = esc_url($track_info['artist']['url'] ?? '');
-        $album_url   = esc_url($track_info['album']['url'] ?? '');
-        $album_title = esc_html($track_info['album']['title'] ?? ($track_info['album']['#text'] ?? 'Unknown Album'));
-        // Fallback: if album image array exists, grab large/medium/small
-        $album_img = '';
-        if (!empty($track_info['album']['image'])) {
-            foreach ($track_info['album']['image'] as $img) {
-                if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
-                    $album_img = esc_url($img['#text']);
-                    break;
-                }
-            }
-        } elseif (!empty($track_info['image'])) {
-            foreach ($track_info['image'] as $img) {
-                if (($img['size'] === 'large' || $img['size'] === 'extralarge') && !empty($img['#text'])) {
-                    $album_img = esc_url($img['#text']);
-                    break;
-                }
-            }
-        }
-        $user_playcount = !empty($track_info['userplaycount']) ? intval($track_info['userplaycount']) : 0;
-
-        // Output widget HTML
         echo $args['before_widget'];
-        ?>
-        <div style="border:1px solid #000; padding:5px; width:<?php echo $width; ?>px; font-size:<?php echo $text_size; ?>px; overflow:hidden; display:flex; flex-direction:row; align-items:center; min-height:<?php echo $height; ?>px;">
-            <!-- Album art (or placeholder) -->
-            <?php if ($show_album_art): ?>
-                <div style="margin-right:8px; flex-shrink:0;">
-                    <?php if (!empty($album_img)): ?>
-                        <a href="<?php echo $album_url; ?>" target="_blank">
-                            <img src="<?php echo $album_img; ?>" alt="<?php echo $album_title; ?>" style="width:48px; height:48px; object-fit:cover; border:1px solid #ccc;" />
-                        </a>
-                    <?php else: ?>
-                        <a href="<?php echo $album_url; ?>" target="_blank" style="display:flex; align-items:center; justify-content:center; width:48px; height:48px; border:1px solid #ccc; font-size:10px; text-align:center; background:#f9f9f9; color:#333; text-decoration:none;">
-                            <?php echo $album_title; ?>
-                        </a>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
-            <!-- Track info -->
-            <div style="flex-grow:1; overflow:hidden;">
-                <div class="lastfm-track" style="overflow:hidden; white-space:nowrap; width:100%;">
-                    <span class="lastfm-track-text">
-                        <strong><?php echo $title; ?></strong>
-                        <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
-                        by
-                        <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
-                    </span>
-                </div>
-                <?php if ($show_playcount && $user_playcount > 0) : ?>
-                    <div class="playcount-line">
-                        <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank" class="lastfm-username"><?php echo esc_html($username); ?></a>
-                        <span> has streamed this <?php echo intval($user_playcount); ?> times</span>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <style>
-        .lastfm-track {
-            overflow: hidden;
-            white-space: nowrap;
-            display: inline-block;
-        }
-        .lastfm-track-text {
-            display: inline-block;
-            padding-right: 0; /* minimal space at end */
-        }
-        .playcount-line {
-            font-size: 0.9em;
-            color: #000;
-            margin-top: 4px;
-        }
-        .playcount-line .lastfm-username {
-            color: #d51007;
-            font-weight: bold;
-            text-decoration: none;
-        }
-        .playcount-line .lastfm-username:hover {
-            text-decoration: underline;
-        }
-        @keyframes scroll-left-right {
-            0%   { transform: translateX(0); }
-            15%  { transform: translateX(0); }
-            85%  { transform: translateX(var(--scroll-distance)); }
-            95%  { transform: translateX(var(--scroll-distance)); }
-            100% { transform: translateX(0); }
-        }
-        .lastfm-track-text.scrolling {
-            animation: scroll-left-right <?php echo $animation_duration; ?>s linear infinite;
-        }
-        </style>
-
-        <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const scrollEnabled = <?php echo $scroll_enabled ? 'true' : 'false'; ?>;
-            if (!scrollEnabled) return;
-
-            document.querySelectorAll(".lastfm-track").forEach(function(container) {
-                const text = container.querySelector(".lastfm-track-text");
-                if (!text) return;
-
-                const containerStyles = window.getComputedStyle(container);
-                const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
-
-                // Calculate visible width minus padding
-                const visibleWidth = container.clientWidth - containerPadding;
-
-                // Calculate overflow width
-                const overflowWidth = text.scrollWidth - visibleWidth;
-
-                // Only scroll if there is actual overflow
-                if (overflowWidth > 0) {
-                    text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
-                    text.classList.add("scrolling");
-                } else {
-                    // Ensure no scrolling if text fits
-                    text.classList.remove("scrolling");
-                    text.style.removeProperty('--scroll-distance');
-                }
-            });
-        });
-        </script>
-
-        <?php
+        $this->render_lastfm_widget_output($instance);
         echo $args['after_widget'];
     }
 }

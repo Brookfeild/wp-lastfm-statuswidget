@@ -300,14 +300,14 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         $show_playcount = isset($instance['show_playcount']) ? $instance['show_playcount'] : get_option('lastfm_nowplaying_playcount', 1);
         $username = isset($instance['username']) ? $instance['username'] : get_option('lastfm_nowplaying_username', 'demoUser');
         if ($preview) {
-            $track_name = "Believe";
-            $artist_name = "Cher";
-            $track_url = "https://www.last.fm/music/Cher/_/Believe";
-            $artist_url = "https://www.last.fm/music/Cher";
-            $album_url = "https://www.last.fm/music/Cher/Believe";
-            $album_img = "http://userserve-ak.last.fm/serve/64/8674593.jpg";
-            $album_title = "Believe";
-            $user_playcount = 281445;
+            $track_name = "911 / Mr. Lonely (feat. Frank Ocean & Steve Lacy)";
+            $artist_name = "Tyler, The Creator";
+            $track_url = "https://www.last.fm/music/Tyler,+The+Creator/_/911+%2F+Mr.+Lonely+(feat.+Frank+Ocean+&+Steve+Lacy)";
+            $artist_url = "https://www.last.fm/music/Tyler,+The+Creator";
+            $album_url = "https://www.last.fm/music/Tyler,+The+Creator/Flower+Boy";
+            $album_img = "https://lastfm.freetls.fastly.net/i/u/770x0/52a7f32bdc99238080b0f17e859b3b4d.jpg#52a7f32bdc99238080b0f17e859b3b4d";
+            $album_title = "Flower Boy";
+            $user_playcount = 999;
         } else {
             $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
             $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
@@ -375,10 +375,16 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                         <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
                     </div>
                 </div>
-                <?php if ($show_playcount && $user_playcount > 0) : ?>
+                <?php if ($show_playcount) : ?>
                     <div class="playcount-line">
-                        <a href="https://www.last.fm/user/<?php echo urlencode($username); ?>" target="_blank" class="lastfm-username"><?php echo esc_html($username); ?></a>
-                        <span> has streamed this <?php echo intval($user_playcount); ?> times</span>
+                        <?php
+                        if ($user_playcount === 0) {
+                            echo '<span>' . esc_html($username) . '\'s first scrobble!</span>';
+                        } else {
+                            echo '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' 
+                                . esc_html($username) . '</a> has scrobbled this ' . intval($user_playcount) . ' times';
+                        }
+                        ?>
                     </div>
                 <?php endif; ?>
             </div>

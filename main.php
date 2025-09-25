@@ -302,13 +302,20 @@ add_action('wp_footer', 'lastfm_nowplaying_enqueue_scripts');
 add_action('admin_footer', 'lastfm_nowplaying_enqueue_scripts');
 
 class LastFM_NowPlaying_Widget extends WP_Widget {
-    public function render_lastfm_widget_output($instance, $preview = false) {
+
+    private function render_lastfm_widget_output($instance, $preview = false) {
+        // --- Settings ---
         $width = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
         $height = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
         $text_size = isset($instance['text_size']) ? intval($instance['text_size']) : get_option('lastfm_nowplaying_text_size', 14);
         $show_album_art = isset($instance['show_album_art']) ? $instance['show_album_art'] : get_option('lastfm_nowplaying_album_art', 1);
         $show_playcount = isset($instance['show_playcount']) ? $instance['show_playcount'] : get_option('lastfm_nowplaying_playcount', 1);
+        $link_username = get_option('lastfm_nowplaying_username_link', 1);
         $username = isset($instance['username']) ? $instance['username'] : get_option('lastfm_nowplaying_username', 'demoUser');
+        $scroll_enabled = get_option('lastfm_nowplaying_scroll_enabled', 1);
+        $scroll_speed = get_option('lastfm_nowplaying_scroll_speed', 5);
+
+        // --- Track info (preview or live) ---
         if ($preview) {
             $track_name = "911 / Mr. Lonely (feat. Frank Ocean & Steve Lacy)";
             $artist_name = "Tyler, The Creator";
@@ -322,47 +329,39 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9';
             $recent_url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
             $recent_response = wp_remote_get($recent_url);
+
             if (is_wp_error($recent_response)) {
                 echo 'Error fetching track.';
                 return;
             }
+
             $recent_data = json_decode(wp_remote_retrieve_body($recent_response), true);
             if (empty($recent_data['recenttracks']['track'][0])) {
                 echo 'No tracks found.';
                 return;
             }
+
             $track = $recent_data['recenttracks']['track'][0];
-            $track_name  = $track['name'];
+            $track_name = $track['name'];
             $artist_name = $track['artist']['#text'];
-            $title       = isset($track['@attr']['nowplaying']) ? 'Now Playing:' : 'Last Played:';
-            $info_url = "https://ws.audioscrobbler.com/2.0/?method=track.getInfo&api_key={$api_key}&artist=" . urlencode($artist_name) . "&track=" . urlencode($track_name) . "&username=" . urlencode($username) . "&format=json";
-            $info_res = wp_remote_get($info_url);
-            $track_info = $track;
-            if (!is_wp_error($info_res)) {
-                $info_data = json_decode(wp_remote_retrieve_body($info_res), true);
-                if (!empty($info_data['track'])) {
-                    $track_info = array_merge($track, $info_data['track']);
-                }
-            }
-            $track_url   = esc_url($track_info['url'] ?? '');
-            $artist_url  = esc_url($track_info['artist']['url'] ?? '');
-            $album_url   = esc_url($track_info['album']['url'] ?? '');
-            $album_title = esc_html($track_info['album']['title'] ?? ($track_info['album']['#text'] ?? 'Unknown Album'));
+            $track_url = esc_url($track['url'] ?? '');
+            $artist_url = esc_url($track['artist']['url'] ?? '');
+            $album_title = esc_html($track['album']['#text'] ?? 'Unknown Album');
+            $album_url = esc_url($track['album']['url'] ?? '');
             $album_img = '';
-            $images = [];
-            if (!empty($track_info['album']['image'])) {
-                $images = $track_info['album']['image'];
-            } elseif (!empty($track_info['image'])) {
-                $images = $track_info['image'];
-            }
-            foreach (array_reverse($images) as $img) {
-                if (!empty($img['#text'])) {
-                    $album_img = esc_url($img['#text']);
-                    break;
+            $user_playcount = !empty($track['userplaycount']) ? intval($track['userplaycount']) : 0;
+
+            if (!empty($track['album']['image'])) {
+                foreach (array_reverse($track['album']['image']) as $img) {
+                    if (!empty($img['#text'])) {
+                        $album_img = esc_url($img['#text']);
+                        break;
+                    }
                 }
             }
-            $user_playcount = !empty($track_info['userplaycount']) ? intval($track_info['userplaycount']) : 0;
         }
+
+        // --- Output Widget ---
         ?>
         <div class="lastfm-widget"<?php if ($height) echo ' style="height:' . intval($height) . 'px"'; ?>>
             <?php if ($show_album_art): ?>
@@ -376,33 +375,36 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                     </a>
                 <?php endif; ?>
             <?php endif; ?>
-            <div class="lastfm-track" style="overflow:hidden; flex-grow:1;">
-                <div class="lastfm-track-text">
-                    <strong>Now Playing:</strong>
-                    <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
-                    by
-                    <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+
+            <div class="text-column">
+                <div class="lastfm-track" style="overflow:hidden;">
+                    <div class="lastfm-track-text">
+                        <strong>Now Playing:</strong>
+                        <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
+                        by
+                        <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+                    </div>
                 </div>
+
+                <?php if ($show_playcount && $user_playcount >= 0): ?>
+                    <div class="playcount-line">
+                        <?php
+                        $username_html = esc_html($username);
+                        if ($link_username) {
+                            $username_html = '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' . esc_html($username) . '</a>';
+                        }
+
+                        if ($user_playcount === 0) {
+                            echo $username_html . '\'s first scrobble!';
+                        } else {
+                            echo $username_html . ' has scrobbled this ' . intval($user_playcount) . ' times';
+                        }
+                        ?>
+                    </div>
+                <?php endif; ?>
             </div>
-            <?php if ($show_playcount) : ?>
-                <div class="playcount-line">
-                    <?php
-                    $link_username = get_option('lastfm_nowplaying_username_link', 1);
-
-                    $username_html = esc_html($username);
-                    if ($link_username) {
-                        $username_html = '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' . esc_html($username) . '</a>';
-                    }
-
-                    if ($user_playcount === 0) {
-                        echo $username_html . '\'s first scrobble!';
-                    } else {
-                        echo $username_html . ' has scrobbled this ' . intval($user_playcount) . ' times';
-                    }
-                    ?>
-                </div>
-            <?php endif; ?>
         </div>
+
         <style>
         .lastfm-widget {
             border: 1px solid #000;
@@ -412,7 +414,12 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             display: flex;
             flex-direction: row;
             align-items: center;
-            min-height: <?php echo $height; ?>px;
+        }
+        .lastfm-widget .text-column {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            overflow: hidden;
         }
         .lastfm-album-art {
             width: 48px;
@@ -425,8 +432,7 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         .lastfm-track-text {
             font-size: <?php echo intval($text_size); ?>px;
             line-height: 1.4em;
-            display: inline-block;
-            padding-right: 0;
+            white-space: nowrap;
         }
         .playcount-line {
             font-size: <?php echo intval($text_size); ?>px;
@@ -442,7 +448,40 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         .playcount-line .lastfm-username:hover {
             text-decoration: underline;
         }
+        @keyframes scroll-left-right {
+            0% { transform: translateX(0); }
+            20% { transform: translateX(0); }
+            80% { transform: translateX(var(--scroll-distance)); }
+            90% { transform: translateX(var(--scroll-distance)); }
+            100% { transform: translateX(0); }
+        }
+        .lastfm-track-text.scrolling {
+            animation: scroll-left-right <?php echo 12; ?>s linear infinite;
+        }
         </style>
+
+        <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const scrollEnabled = <?php echo $scroll_enabled ? 'true' : 'false'; ?>;
+            if (!scrollEnabled) return;
+
+            document.querySelectorAll(".lastfm-track").forEach(function(container) {
+                const text = container.querySelector(".lastfm-track-text");
+                if (!text) return;
+
+                const containerWidth = container.clientWidth;
+                const overflowWidth = text.scrollWidth - containerWidth;
+
+                if (overflowWidth > 0) {
+                    text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
+                    text.classList.add("scrolling");
+                } else {
+                    text.classList.remove("scrolling");
+                    text.style.removeProperty('--scroll-distance');
+                }
+            });
+        });
+        </script>
         <?php
     }
 
@@ -454,7 +493,6 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         );
     }
 
-    // Widget settings form in admin
     public function form($instance) {
         $this->render_lastfm_widget_output($instance, true);
         ?>
@@ -479,16 +517,14 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
         <?php
     }
 
-    // Update widget options
     public function update($new_instance, $old_instance) {
         $instance = $old_instance;
-        $instance['width']     = intval($new_instance['width']);
-        $instance['height']    = intval($new_instance['height']);
+        $instance['width'] = intval($new_instance['width']);
+        $instance['height'] = intval($new_instance['height']);
         $instance['text_size'] = intval($new_instance['text_size']);
         return $instance;
     }
 
-    // Frontend display
     public function widget($args, $instance) {
         echo $args['before_widget'];
         $this->render_lastfm_widget_output($instance);

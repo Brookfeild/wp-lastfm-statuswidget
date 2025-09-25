@@ -32,6 +32,12 @@ function lastfm_nowplaying_register_settings() {
             'sanitize_callback' => 'absint',
         ]);
 
+        register_setting('lastfm_nowplaying_options', 'lastfm_nowplaying_username_link', [
+            'type' => 'boolean',
+            'default' => 1,
+            'sanitize_callback' => 'absint',
+        ]);
+
     // Add section
     add_settings_section(
         'lastfm_nowplaying_section',
@@ -136,6 +142,20 @@ function lastfm_nowplaying_register_settings() {
                 ?>
                 <input type="checkbox" name="lastfm_nowplaying_playcount" value="1" <?php checked(1, $value); ?> />
                 <label for="lastfm_nowplaying_playcount">Show "USERNAME has streamed this PLAYCOUNT times"</label>
+                <?php
+            },
+            'lastfm_nowplaying',
+            'lastfm_nowplaying_section'
+        );
+
+        add_settings_field(
+            'lastfm_nowplaying_username_link',
+            'Hyperlink Username',
+            function () {
+                $value = get_option('lastfm_nowplaying_username_link', 1);
+                ?>
+                <input type="checkbox" name="lastfm_nowplaying_username_link" value="1" <?php checked(1, $value); ?> />
+                <label for="lastfm_nowplaying_username_link">Make username a clickable red link in playcount line</label>
                 <?php
             },
             'lastfm_nowplaying',
@@ -378,11 +398,17 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                 <?php if ($show_playcount) : ?>
                     <div class="playcount-line">
                         <?php
+                        $link_username = get_option('lastfm_nowplaying_username_link', 1);
+
+                        $username_html = esc_html($username);
+                        if ($link_username) {
+                            $username_html = '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' . esc_html($username) . '</a>';
+                        }
+
                         if ($user_playcount === 0) {
-                            echo '<span>' . esc_html($username) . '\'s first scrobble!</span>';
+                            echo $username_html . '\'s first scrobble!';
                         } else {
-                            echo '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' 
-                                . esc_html($username) . '</a> has scrobbled this ' . intval($user_playcount) . ' times';
+                            echo $username_html . ' has scrobbled this ' . intval($user_playcount) . ' times';
                         }
                         ?>
                     </div>

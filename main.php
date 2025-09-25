@@ -251,23 +251,21 @@ function lastfm_nowplaying_enqueue_scripts() {
     <style>
     .lastfm-track {
         overflow: hidden;
-        white-space: nowrap;
-        display: inline-block;
+        flex-grow: 1;
+        display: block;
     }
-
     .lastfm-track-text {
         display: inline-block;
-        padding-right: 0; /* minimal gap at the end */
+        white-space: nowrap;
+        padding-right: 0;
     }
-
     @keyframes scroll-left-right {
         0% { transform: translateX(0); }
-        20% { transform: translateX(0); } /* wait 15s at left */
-        80% { transform: translateX(var(--scroll-distance)); } /* scroll fully left */
-        90% { transform: translateX(var(--scroll-distance)); } /* wait 5s */
-        100% { transform: translateX(0); } /* return to start */
+        20% { transform: translateX(0); }
+        80% { transform: translateX(var(--scroll-distance)); }
+        90% { transform: translateX(var(--scroll-distance)); }
+        100% { transform: translateX(0); }
     }
-
     .lastfm-track-text.scrolling {
         animation: scroll-left-right <?php echo $animation_duration; ?>s linear infinite;
     }
@@ -282,21 +280,13 @@ function lastfm_nowplaying_enqueue_scripts() {
             const text = container.querySelector(".lastfm-track-text");
             if (!text) return;
 
-            const containerStyles = window.getComputedStyle(container);
-            const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
+            const containerWidth = container.clientWidth;
+            const textWidth = text.scrollWidth;
 
-            // Calculate visible width minus padding
-            const visibleWidth = container.clientWidth - containerPadding;
-
-            // Calculate overflow width
-            const overflowWidth = text.scrollWidth - visibleWidth;
-
-            // Only scroll if there is actual overflow
-            if (overflowWidth > 0) {
-                text.style.setProperty('--scroll-distance', `-${overflowWidth}px`);
+            if (textWidth > containerWidth) {
+                text.style.setProperty('--scroll-distance', `-${textWidth - containerWidth}px`);
                 text.classList.add("scrolling");
             } else {
-                // Ensure no scrolling if text fits
                 text.classList.remove("scrolling");
                 text.style.removeProperty('--scroll-distance');
             }
@@ -386,34 +376,32 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                     </a>
                 <?php endif; ?>
             <?php endif; ?>
-            <div style="flex-grow:1; overflow:hidden;">
-                <div class="lastfm-track">
-                    <div class="lastfm-track-text">
-                        <strong>Now Playing:</strong>
-                        <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
-                        by
-                        <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
-                    </div>
+            <div class="lastfm-track" style="overflow:hidden; flex-grow:1;">
+                <div class="lastfm-track-text">
+                    <strong>Now Playing:</strong>
+                    <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
+                    by
+                    <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
                 </div>
-                <?php if ($show_playcount) : ?>
-                    <div class="playcount-line">
-                        <?php
-                        $link_username = get_option('lastfm_nowplaying_username_link', 1);
-
-                        $username_html = esc_html($username);
-                        if ($link_username) {
-                            $username_html = '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' . esc_html($username) . '</a>';
-                        }
-
-                        if ($user_playcount === 0) {
-                            echo $username_html . '\'s first scrobble!';
-                        } else {
-                            echo $username_html . ' has scrobbled this ' . intval($user_playcount) . ' times';
-                        }
-                        ?>
-                    </div>
-                <?php endif; ?>
             </div>
+            <?php if ($show_playcount) : ?>
+                <div class="playcount-line">
+                    <?php
+                    $link_username = get_option('lastfm_nowplaying_username_link', 1);
+
+                    $username_html = esc_html($username);
+                    if ($link_username) {
+                        $username_html = '<a href="https://www.last.fm/user/' . urlencode($username) . '" target="_blank" class="lastfm-username">' . esc_html($username) . '</a>';
+                    }
+
+                    if ($user_playcount === 0) {
+                        echo $username_html . '\'s first scrobble!';
+                    } else {
+                        echo $username_html . ' has scrobbled this ' . intval($user_playcount) . ' times';
+                    }
+                    ?>
+                </div>
+            <?php endif; ?>
         </div>
         <style>
         .lastfm-widget {

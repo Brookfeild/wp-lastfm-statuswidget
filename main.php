@@ -620,12 +620,15 @@ function lastfm_nowplaying_register_widget() {
 }
 add_action('widgets_init', 'lastfm_nowplaying_register_widget');
 
-function lastfm_nowplaying_shortcode($atts = []) {
+function lastfm_widget_shortcode($atts = []) {
     ob_start();
     the_widget('LastFM_NowPlaying_Widget', $atts);
     return ob_get_clean();
 }
-add_shortcode('lastfm_nowplaying', 'lastfm_nowplaying_shortcode');
+
+// Register new shortcode tag `lastfm_widget` and keep `lastfm_nowplaying` as an alias
+add_shortcode('lastfm_widget', 'lastfm_widget_shortcode');
+add_shortcode('lastfm_nowplaying', 'lastfm_widget_shortcode');
 
 // Enqueue external assets (CSS + JS)
 function lastfm_nowplaying_enqueue_assets() {

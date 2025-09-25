@@ -233,9 +233,9 @@ function lastfm_nowplaying_settings_page() {
                         } else {
                             echo '<em>Preview not available (widget class missing).</em>';
                         }
-                    } catch (Exception $e) {
-                        echo '<em>Preview error: ' . esc_html($e->getMessage()) . '</em>';
-                    }
+                    } catch (\Throwable $e) {
+                            echo '<em>Preview error: ' . esc_html($e->getMessage()) . '</em>';
+                        }
                 }
                 ?>
             </div>
@@ -323,7 +323,7 @@ add_action('admin_footer', 'lastfm_nowplaying_enqueue_scripts');
 
 class LastFM_NowPlaying_Widget extends WP_Widget {
 
-    private function render_lastfm_widget_output($instance, $preview = false) {
+    public function render_lastfm_widget_output($instance, $preview = false) {
         // --- Settings ---
         $width = isset($instance['width']) ? $instance['width'] : get_option('lastfm_nowplaying_width', 200);
         $height = isset($instance['height']) ? $instance['height'] : get_option('lastfm_nowplaying_height', 50);
@@ -364,7 +364,12 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $recent_body = wp_remote_retrieve_body($recent_response);
             $recent_data = json_decode($recent_body, true);
             if (!$recent_data || empty($recent_data['recenttracks']['track'][0])) {
-                echo '<em>No track data available.</em>';
+                // If Last.fm returned an error message, show it for easier debugging
+                if (!empty($recent_data['message'])) {
+                    echo '<em>Last.fm error: ' . esc_html($recent_data['message']) . '</em>';
+                } else {
+                    echo '<em>No track data available.</em>';
+                }
                 return;
             }
 
@@ -454,9 +459,14 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                 $album_img = esc_url($found ?: $fallback);
             }
 
-            // Final fallback: plugin placeholder image
+            // Final fallback: plugin placeholder image (only if it exists)
             if (empty($album_img)) {
-                $album_img = esc_url(plugin_dir_url(__FILE__) . 'assets/placeholder.png');
+                $placeholder_path = plugin_dir_path(__FILE__) . 'assets/placeholder.png';
+                if (file_exists($placeholder_path)) {
+                    $album_img = esc_url(plugin_dir_url(__FILE__) . 'assets/placeholder.png');
+                } else {
+                    $album_img = '';
+                }
             }
         }
 

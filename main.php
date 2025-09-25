@@ -179,35 +179,8 @@ function lastfm_nowplaying_settings_page() {
                 );
 
                 if ($username) {
-                    $api_key = 'fd4bc04c5f3387f5b0b5f4f7bae504b9'; // replace with your key
-                    $url = "https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={$username}&api_key={$api_key}&format=json&limit=1";
-                    $response = wp_remote_get($url);
-
-                    $track_name = $artist_name = 'No track found';
-                    $title = 'Last Played:';
-
-                    if (!is_wp_error($response)) {
-                        $data = json_decode(wp_remote_retrieve_body($response), true);
-                        if (!empty($data['recenttracks']['track'][0])) {
-                            $track = $data['recenttracks']['track'][0];
-                            $track_name = esc_html($track['name']);
-                            $artist_name = esc_html($track['artist']['#text']);
-                            $title = isset($track['@attr']['nowplaying']) ? 'Now Playing:' : 'Last Played:';
-                        }
-                    }
-
-                    echo "<div style='border:1px solid #000; padding:0; width:{$width}px; font-size:{$text_size}px; overflow:hidden;'>";
-
-                    echo "<strong>{$title}</strong> ";
-                    echo "<div class='lastfm-track' style='display:inline-block; width:" . ($width - 20) . "px; overflow:hidden; vertical-align:middle; white-space:nowrap;'>";
-                    echo "<span class='lastfm-track-text'>{$track_name} by {$artist_name}</span>";
-                    echo "</div>";
-
-                    if ($second_line_enabled) {
-                        $link = esc_url("https://www.last.fm/user/" . urlencode($username));
-                        echo "<br/><a href='{$link}' target='_blank'>" . esc_html($second_line_text) . "</a>";
-                    }
-                    echo "</div>";
+                    $widget = new LastFM_NowPlaying_Widget();
+                    $widget->render_lastfm_widget_output([], true);
                 } else {
                     echo '<em>Enter a Last.fm username above to see a preview.</em>';
                 }
@@ -382,11 +355,13 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                 <?php endif; ?>
             <?php endif; ?>
             <div style="flex-grow:1; overflow:hidden;">
-                <div class="lastfm-track-text">
-                    <strong>Now Playing:</strong>
-                    <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
-                    by
-                    <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+                <div class="lastfm-track">
+                    <div class="lastfm-track-text">
+                        <strong>Now Playing:</strong>
+                        <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
+                        by
+                        <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+                    </div>
                 </div>
                 <?php if ($show_playcount && $user_playcount > 0) : ?>
                     <div class="playcount-line">

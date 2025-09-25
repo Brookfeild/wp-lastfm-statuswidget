@@ -160,7 +160,7 @@ function lastfm_nowplaying_register_settings() {
         'lastfm_nowplaying_section'
     );
 
-    API key
+    // API key
     add_settings_field(
         'lastfm_nowplaying_api_key',
         'Last.fm API Key',

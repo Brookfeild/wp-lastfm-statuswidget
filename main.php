@@ -370,7 +370,13 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
             $track_name = isset($track['name']) ? $track['name'] : 'Unknown Track';
             $artist_name = isset($track['artist']['#text']) ? $track['artist']['#text'] : 'Unknown Artist';
             $track_url = esc_url(isset($track['url']) ? $track['url'] : '');
-            $artist_url = esc_url(isset($track['artist']['url']) ? $track['artist']['url'] : '');
+
+            // Build a full Last.fm artist URL if the API didn't provide one (avoid relative links)
+            if (!empty($track['artist']['url'])) {
+                $artist_url = esc_url($track['artist']['url']);
+            } else {
+                $artist_url = esc_url('https://www.last.fm/music/' . urlencode($artist_name));
+            }
 
             // Keep a raw album title for building fallback URLs, and an escaped title for display
             $raw_album_title = isset($track['album']['#text']) ? $track['album']['#text'] : 'Unknown Album';
@@ -482,9 +488,9 @@ class LastFM_NowPlaying_Widget extends WP_Widget {
                 <div class="lastfm-track" style="overflow:hidden;">
                     <div class="lastfm-track-text">
                         <strong>Now Playing:</strong>
-                        <a href="<?php echo $track_url; ?>" target="_blank"><?php echo esc_html($track_name); ?></a>
+                        <a href="<?php echo esc_url($track_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($track_name); ?></a>
                         by
-                        <a href="<?php echo $artist_url; ?>" target="_blank"><?php echo esc_html($artist_name); ?></a>
+                        <a href="<?php echo esc_url($artist_url); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html($artist_name); ?></a>
                     </div>
                 </div>
 
